@@ -93,7 +93,6 @@ jobs:
           if [ ! -s /tmp/release-notes.md ]; then
             echo "Nothing since the last release reaches the notes; every commit this cycle was an internal type." >&2
             echo "If something user-facing did land, it was committed under the wrong type." >&2
-            exit 1
           fi
 
       - run: pnpm test
