@@ -9,7 +9,7 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["compose", "menus", "scripting"],
+  "permissions": ["compose", "menus", "scripting", "storage"],
   "background": {
     "scripts": ["src/background/background.js"],
     "type": "module"
@@ -27,5 +27,9 @@
       },
       "description": "Insert code block"
     }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": false
   }
 }

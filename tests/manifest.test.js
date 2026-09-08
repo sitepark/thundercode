@@ -45,6 +45,7 @@ describe("manifest", () => {
       "compose",
       "menus",
       "scripting",
+      "storage",
     ]);
   });
 
@@ -90,9 +91,9 @@ describe("manifest", () => {
   describe("keyboard shortcut", () => {
     it("opens the popup through Thunderbird's built-in compose-action command", () => {
       // `_execute_compose_action` is handled inside Thunderbird, which calls
-      // the compose action directly. Any other command name would need an
-      // `onCommand` listener, and therefore the background script this
-      // extension deliberately still does not have.
+      // the compose action directly and never dispatches `commands.onCommand`.
+      // Any other command name would need an `onCommand` listener in the
+      // background script, which is a listener nothing here registers.
       expect(Object.keys(manifest.commands)).toEqual([
         "_execute_compose_action",
       ]);
@@ -122,11 +123,30 @@ describe("manifest", () => {
     });
   });
 
+  /**
+   * Without this key the options page exists in the repo and nowhere in the
+   * product: there is no other route to it, since the popup deliberately does
+   * not link to settings.
+   */
+  it("offers an options page, which is the only way to reach the settings", () => {
+    expect(manifest.options_ui.page).toBeTruthy();
+  });
+
+  /**
+   * Embedded in the Add-ons Manager rather than opened as a tab. Two numbers
+   * do not warrant a tab of their own, and the inline pane is where anyone
+   * looking for an add-on's preferences looks first.
+   */
+  it("embeds that page in the Add-ons Manager rather than opening a tab", () => {
+    expect(manifest.options_ui.open_in_tab).toBe(false);
+  });
+
   it("references only files that exist", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
       ...manifest.background.scripts,
+      manifest.options_ui.page,
     ];
     for (const path of referenced) {
       expect(existsSync(resolve(repoRoot, path)), path).toBe(true);
