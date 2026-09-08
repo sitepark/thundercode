@@ -9,14 +9,14 @@
 - [x] The toolbar button paints an icon
 - [x] The inserted block is not spell-checked
 - [x] The block has rounded corners
-- [ ] **Hands-on:** the button shows the `< >` glyph in the compose window's format toolbar, on the default theme
-- [ ] **Hands-on:** the same, with a dark theme applied — the glyph should be light ink, as legible as Thunderbird's own buttons beside it
-- [ ] **Hands-on:** insert a block containing identifiers a dictionary would reject (`getEnv`, `usr`, `strlen`) and confirm no red underlines appear inside it, while a misspelling in the surrounding prose still gets one
-- [ ] **Hands-on:** the block's corners are rounded in the compose window and in the message as received
+- [x] **Hands-on:** the button shows the `< >` glyph in the compose window's format toolbar, on the default theme
+- [x] **Hands-on:** the same, with a dark theme applied — the glyph should be light ink, as legible as Thunderbird's own buttons beside it
+- [x] **Hands-on:** insert a block containing identifiers a dictionary would reject (`getEnv`, `usr`, `strlen`) and confirm no red underlines appear inside it, while a misspelling in the surrounding prose still gets one
+- [x] **Hands-on:** the block's corners are rounded in the compose window and in the message as received
 - [x] The popup follows Thunderbird's light or dark appearance
-- [ ] **Hands-on:** with a dark theme, the popup's canvas, textarea, dropdown and button are dark, and the warning and error lines are legible
-- [ ] **Hands-on:** the preview still shows a light block on white paper under a dark theme, since that is what the recipient will see
-- [ ] **Hands-on:** the same for the options page in the Add-ons Manager
+- [x] **Hands-on:** with a dark theme, the popup's canvas, textarea, dropdown and button are dark, and the warning and error lines are legible
+- [x] **Hands-on:** the preview still shows a light block on white paper under a dark theme, since that is what the recipient will see
+- [x] **Hands-on:** the same for the options page in the Add-ons Manager
 
 ## Comments
 
@@ -74,3 +74,7 @@ The colours the files do state cannot come along for free, so each is stated twi
 The block itself stays light for the same reason, on every theme. A dark code block is a dark code block in the recipient's inbox too, and the seam has no idea what colour that inbox is.
 
 Verified by rendering both stylesheets headlessly under a forced dark scheme rather than by reasoning about them — canvas `#1c1b22`, controls dark, both message lines legible, the preview still white paper. `tests/styles.test.js` pins the rule going forward: `color-scheme` declared, and every `color:` in either file written as a `light-dark()` pair.
+
+### Confirmed
+
+Checked on a running Thunderbird by the reporter: "everything looks good". Every hands-on box above is ticked on that, and on nothing else — this file's boxes only. The unticked boxes on tickets 01–12, including the two spike findings on 01, are untouched and still want their own pass.
