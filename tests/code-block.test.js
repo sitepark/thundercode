@@ -11,6 +11,10 @@ const preStyle = (html) => html.match(/^<pre\b[^>]*\bstyle="([^"]*)"/)?.[1];
 const preContent = (html) =>
   html.replace(/^<pre\b[^>]*>/, "").replace(/<\/pre>$/, "");
 
+/** The block's text, which for unhighlighted source is the whole content. */
+const blockText = (source, options) =>
+  preContent(buildCodeBlockHtml({ source, ...options }).html);
+
 describe("buildCodeBlockHtml", () => {
   it("wraps the source in a single pre element", () => {
     const { html } = buildCodeBlockHtml({ source: "hello" });
@@ -30,24 +34,115 @@ describe("buildCodeBlockHtml", () => {
     );
   });
 
-  it("reproduces indentation exactly", () => {
-    const source = "def f():\n    if x:\n        return 1\n";
-
-    const { html } = buildCodeBlockHtml({ source });
-
-    expect(html).toContain("def f():\n    if x:\n        return 1\n");
+  it("reproduces relative indentation exactly", () => {
+    expect(blockText("def f():\n    if x:\n        return 1")).toBe(
+      "def f():\n    if x:\n        return 1",
+    );
   });
 
   /**
-   * The HTML parser drops a newline immediately after the `<pre>` start tag,
-   * so a source that opens with a blank line would silently lose it. The rule
-   * is in the HTML spec, not in this code: the only way to emit a leading
-   * newline is to write two.
+   * Ticket 05 changes what the source is: everything below is asserted on the
+   * cleaned-up text, not on the paste. Ticket 02's "reproduced exactly" now
+   * means the structure the author sees in their editor, not the bytes on the
+   * clipboard.
    */
-  it("survives the parser eating the newline after the start tag", () => {
-    const { html } = buildCodeBlockHtml({ source: "\n\nx" });
+  describe("normalising the pasted source", () => {
+    it("expands tabs to spaces at a width of four", () => {
+      expect(blockText("if x:\n\treturn 1")).toBe("if x:\n    return 1");
+    });
 
-    expect(preContent(html)).toBe("\n\n\nx");
+    it("expands tabs at the width the caller asks for", () => {
+      expect(blockText("if x:\n\treturn 1", { tabWidth: 2 })).toBe(
+        "if x:\n  return 1",
+      );
+    });
+
+    /**
+     * A tab advances to the next tab stop rather than becoming a fixed run of
+     * spaces. Substituting four spaces for every tab would skew any line that
+     * uses a tab to line something up after other characters, which is exactly
+     * where the difference is visible.
+     */
+    it("advances a tab to the next tab stop, not by a fixed run of spaces", () => {
+      expect(blockText("a\tb")).toBe("a   b");
+      expect(blockText("abcd\te")).toBe("abcd    e");
+    });
+
+    /**
+     * Ticket 10 feeds this from a settings field, where a half-typed value is
+     * `NaN` and a cleared one may be `0`. Neither may take the block down.
+     */
+    it("falls back to four when the caller has no usable tab width", () => {
+      expect(blockText("if x:\n\treturn 1", { tabWidth: Number.NaN })).toBe(
+        "if x:\n    return 1",
+      );
+      expect(blockText("if x:\n\treturn 1", { tabWidth: 0 })).toBe(
+        "if x:\n    return 1",
+      );
+    });
+
+    /**
+     * Invisible characters at the end of a line are the one thing that makes
+     * `pre-wrap` wrap a line that plainly fits. The `\r` of a CRLF paste is
+     * caught by the same strip, which is how Windows source arrives as LF.
+     */
+    it("strips trailing whitespace from every line", () => {
+      expect(blockText("a   \nb\t\nc")).toBe("a\nb\nc");
+      expect(blockText("a\r\nb\r\n")).toBe("a\nb");
+    });
+
+    it("strips leading and trailing blank lines", () => {
+      expect(blockText("\n\n   \nx\ny\n  \n\n")).toBe("x\ny");
+    });
+
+    it("keeps blank lines inside the snippet, which are the author's", () => {
+      expect(blockText("a\n\nb")).toBe("a\n\nb");
+    });
+
+    it("removes the indentation shared by every line", () => {
+      expect(blockText("    def f():\n        return 1")).toBe(
+        "def f():\n    return 1",
+      );
+    });
+
+    /**
+     * The failure this guards against is silent: a blank line has no
+     * indentation, so counting it as zero would make the shared indent zero
+     * for most real snippets and quietly turn the transform off.
+     */
+    it("is not defeated by interspersed blank lines", () => {
+      expect(blockText("    a\n\n    b")).toBe("a\n\nb");
+      expect(blockText("    a\n  \n    b")).toBe("a\n\nb");
+    });
+
+    it("removes nothing when one line is already at zero indent", () => {
+      expect(blockText("def f():\n    return 1")).toBe(
+        "def f():\n    return 1",
+      );
+    });
+
+    /**
+     * The property that makes normalisation safe to apply without asking:
+     * running it over its own output is a no-op, so nothing erodes if a
+     * snippet makes the round trip twice.
+     */
+    it("is idempotent", () => {
+      const once = blockText("\n\t\tdef f():\n\n\t\t\treturn 1   \n\n");
+
+      expect(once).toBe("def f():\n\n    return 1");
+      expect(blockText(once)).toBe(once);
+    });
+
+    /**
+     * An HTML parser discards a newline directly after the `<pre>` start tag,
+     * which used to cost a snippet its leading blank line. Stripping leading
+     * blank lines removes the hazard rather than compensating for it — but
+     * only for as long as the block's text cannot begin with a newline, which
+     * is what this pins.
+     */
+    it("never opens with a newline for the parser to eat", () => {
+      expect(blockText("\n\n\nx")).not.toMatch(/^\n/);
+    });
   });
 
   describe("the block's own styling", () => {
@@ -188,9 +283,14 @@ describe("buildCodeBlockHtml", () => {
       expect(preContent(html)).toBe("const a = 1;");
     });
 
+    /**
+     * Nothing but whitespace normalises away entirely: an empty block rather
+     * than a block of dead space.
+     */
     it("handles source that is entirely blank lines", () => {
       const { html } = buildCodeBlockHtml({ source: "\n \n\t\n" });
 
+      expect(preContent(html)).toBe("");
       expect(html).toMatch(/^<pre[^>]*>/);
       expect(html).toMatch(/<\/pre>$/);
     });
