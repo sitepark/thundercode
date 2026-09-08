@@ -15,6 +15,57 @@ const preContent = (html) =>
 const blockText = (source, options) =>
   preContent(buildCodeBlockHtml({ source, ...options }).html);
 
+/**
+ * What a recipient sees: the block's content with the token spans taken back
+ * off and the escaping undone. Highlighting must be the only thing that
+ * changes between a highlighted block and an unhighlighted one, so the tests
+ * that care about the *code* rather than the colour go through this and stay
+ * indifferent to which tokens the highlighter happened to find.
+ */
+const visibleText = (html) =>
+  preContent(html)
+    .replace(/<\/?span[^>]*>/g, "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    // Last, so that an `&amp;lt;` in the output — the double-escaping this is
+    // partly here to catch — still comes back as a visible `&lt;`.
+    .replaceAll("&amp;", "&");
+
+/**
+ * Deliberately not the shipped theme, and deliberately incomplete.
+ *
+ * Tests inject this so that swapping the theme stylesheet — which is not a
+ * behaviour change — cannot fail the suite. The gaps are load-bearing too:
+ * `hljs-property` and `hljs-number` are absent so that the "unstyled span"
+ * degradation is exercised by real highlighter output rather than by a
+ * hand-made class name. Real themes have such gaps as well; the GitHub theme
+ * leaves six token classes empty on purpose.
+ */
+const themeMap = {
+  "hljs-keyword": "color: #aa0000",
+  "hljs-string": "color: #00aa00; font-style: italic",
+  "hljs-comment": "color: #777777; font-style: italic",
+  "hljs-title": "color: #6f42c1; font-weight: bold",
+  // The pair that makes the key format worth having. A lookup on the first
+  // class alone would give both of these the same colour.
+  "hljs-variable": "color: #0000aa",
+  "hljs-variable language_": "color: #aa0000",
+};
+
+/**
+ * The attributes of the first span wrapping exactly `token`, or `undefined` if
+ * the highlighter did not wrap that text in a span at all. The two are kept
+ * apart on purpose: "no span" and "a span with no style" are different
+ * outcomes, and the degradation case asserts on the second.
+ */
+const spanFor = (html, token) =>
+  html.match(new RegExp(`<span([^>]*)>${token}</span>`))?.[1];
+
+/** The `style` attribute of that span, or `undefined` if it carries none. */
+const styleOf = (html, token) =>
+  spanFor(html, token)?.match(/style="([^"]*)"/)?.[1];
+
 describe("buildCodeBlockHtml", () => {
   it("wraps the source in a single pre element", () => {
     const { html } = buildCodeBlockHtml({ source: "hello" });
@@ -200,6 +251,169 @@ describe("buildCodeBlockHtml", () => {
     });
   });
 
+  /**
+   * The colour, and the one rule that carries it anywhere: a `class` survives
+   * only as long as the stylesheet that explains it, and the recipient's
+   * client drops that stylesheet the first time anyone in the thread replies.
+   *
+   * Every assertion here injects the fixture map above. None of them loads the
+   * shipped theme, so changing theme — which is not a behaviour change — can
+   * never fail the suite.
+   */
+  describe("syntax highlighting", () => {
+    const javascript = "class Foo { m() { return this.x } }";
+
+    it("writes the injected map's declarations onto the tokens as styles", () => {
+      const { html } = buildCodeBlockHtml({
+        source: "const a = 1;",
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(styleOf(html, "const")).toBe("color: #aa0000");
+    });
+
+    /**
+     * highlight.js does not emit one class per span: a tiered scope such as
+     * `variable.language` arrives as `class="hljs-variable language_"`. The
+     * exact list has to win, because in a real theme it is a *different*
+     * colour from the bare class — `this` and `self` are keyword-coloured
+     * while an ordinary variable is not. Getting this wrong is silent.
+     */
+    it("prefers the exact class list over the first class alone", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(styleOf(html, "this")).toBe(themeMap["hljs-variable language_"]);
+      expect(styleOf(html, "this")).not.toBe(themeMap["hljs-variable"]);
+    });
+
+    /**
+     * The fallback is what renders a modifier the theme has no rule for.
+     * `Foo` arrives as `hljs-title class_`, which this map does not carry —
+     * the bare `hljs-title` entry is what it should land on.
+     */
+    it("falls back to the first class when the exact list is absent", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(styleOf(html, "Foo")).toBe(themeMap["hljs-title"]);
+    });
+
+    /**
+     * The map is always incomplete — themes leave token classes unstyled on
+     * purpose — so an unknown class is a normal input, not an error.
+     */
+    it("leaves a class absent from the map as an unstyled span", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+      });
+
+      // `x` is `hljs-property`, which the fixture has no entry for. The span
+      // is still emitted: dropping it would mean working out which `</span>`
+      // to drop with it, and unstyled is what the theme's author intends for
+      // the classes they left empty.
+      expect(spanFor(html, "x")).toBe("");
+      expect(styleOf(html, "x")).toBeUndefined();
+    });
+
+    it("highlights without a theme map at all rather than throwing", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+      });
+
+      expect(visibleText(html)).toBe(javascript);
+      // One `style` attribute in the whole block, and it is the `<pre>`'s.
+      // Every token span came out bare.
+      expect(html.match(/style=/g)).toHaveLength(1);
+    });
+
+    it("emits no class attribute and no style element", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(html).toContain("<span");
+      expect(html).not.toMatch(/\bclass=/);
+      expect(html).not.toMatch(/<style\b/i);
+    });
+
+    /**
+     * Set once on the `<pre>` and inherited. Repeating it on every token would
+     * multiply the size of a message that is already several times its source.
+     */
+    it("puts no font size on the tokens", () => {
+      const { html } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+        fontSize: 16,
+      });
+
+      expect(html.match(/font-size/g)).toHaveLength(1);
+    });
+
+    /**
+     * The highlighter escapes its own output. Escaping it a second time would
+     * put the entities themselves in the message — a recipient reading
+     * `&amp;lt;` where the code says `<`.
+     */
+    it("escapes the source exactly once", () => {
+      const source = 'if (a < b && c > d) return "<x>";';
+
+      const { html } = buildCodeBlockHtml({
+        source,
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(html).toContain("&lt;");
+      expect(html).not.toContain("&amp;lt;");
+      expect(visibleText(html)).toBe(source);
+    });
+
+    /**
+     * The order the whole pipeline depends on. Tokenising the raw paste would
+     * wrap spans around indentation that is about to be sliced off, and the
+     * slice would then be cutting inside markup.
+     */
+    it("normalises before it highlights", () => {
+      const { html } = buildCodeBlockHtml({
+        source: "\n    def f():\n\t\treturn 1  \n",
+        language: "python",
+        themeMap,
+      });
+
+      expect(visibleText(html)).toBe("def f():\n    return 1");
+    });
+
+    /**
+     * Ticket 09's obligation, restated as a test. There is no such thing as a
+     * highlighted plain-text mail, and markup in `text` would be markup in the
+     * message.
+     */
+    it("leaves the plain-text rendering unhighlighted", () => {
+      const { text } = buildCodeBlockHtml({
+        source: javascript,
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(text).toBe(javascript);
+    });
+  });
+
   describe("the block's own styling", () => {
     it("uses a monospace stack ending in the generic keyword", () => {
       const style = preStyle(buildCodeBlockHtml({ source: "x" }).html);
@@ -286,18 +500,61 @@ describe("buildCodeBlockHtml", () => {
 
   describe("the language it used", () => {
     /**
-     * Ticket 02 has no highlighter, so nothing is coloured whatever the caller
-     * asks for. Reporting back the requested language would be a lie the
-     * popup would then display; plaintext is what actually rendered.
+     * The report is of what was applied, never of what was asked for. Ticket
+     * 02 hardcoded `plaintext` here because nothing could be highlighted; the
+     * rule it was protecting is the same one now, and ticket 06's preview
+     * depends on it — a claimed language the block does not carry would be
+     * displayed as fact.
      */
-    it("reports plaintext, because nothing is highlighted yet", () => {
-      expect(buildCodeBlockHtml({ source: "x" }).detectedLanguage).toBe(
-        "plaintext",
-      );
+    it("reports the language it actually applied", () => {
       expect(
-        buildCodeBlockHtml({ source: "x", language: "python" })
+        buildCodeBlockHtml({ source: "const a = 1;", language: "javascript" })
           .detectedLanguage,
-      ).toBe("plaintext");
+      ).toBe("javascript");
+    });
+
+    /**
+     * Auto-detection is ticket 04's. Until it exists, asking for it gets an
+     * unhighlighted block that says so, rather than a guess.
+     */
+    it("reports plaintext when no language is chosen", () => {
+      const { html, detectedLanguage } = buildCodeBlockHtml({
+        source: "const a = 1;",
+      });
+
+      expect(detectedLanguage).toBe("plaintext");
+      expect(html).not.toContain("<span");
+    });
+
+    /**
+     * `hljs.highlight` throws on a language it was never given. A stale
+     * setting or a caller guessing at an alias the bundle does not carry must
+     * cost the colour, not the block.
+     */
+    it("degrades to plaintext for a language the bundle does not have", () => {
+      const { html, detectedLanguage } = buildCodeBlockHtml({
+        source: "const a = 1;",
+        language: "klingon",
+        themeMap,
+      });
+
+      expect(detectedLanguage).toBe("plaintext");
+      expect(html).not.toContain("<span");
+    });
+
+    /**
+     * Picking the wrong language from the dropdown is a normal thing to do —
+     * it is what the dropdown is for. Source that trips the chosen language's
+     * `illegal` rule must still produce a block.
+     */
+    it("survives source that is not the language it was told", () => {
+      const { html } = buildCodeBlockHtml({
+        source: "#!/bin/sh\nfor f in *; do echo $f; done",
+        language: "json",
+        themeMap,
+      });
+
+      expect(visibleText(html)).toBe("#!/bin/sh\nfor f in *; do echo $f; done");
     });
 
     it("puts no language label in the block", () => {
@@ -305,7 +562,7 @@ describe("buildCodeBlockHtml", () => {
 
       const { html } = buildCodeBlockHtml({ source, language: "python" });
 
-      expect(preContent(html)).toBe(source);
+      expect(visibleText(html)).toBe(source);
     });
 
     /**

@@ -1,9 +1,12 @@
+import hljs from "../../vendor/highlight.js/common.js";
 import { buildCodeBlockHtml } from "../code-block/build-code-block-html.js";
 import { insertIntoBody } from "../compose/insert-into-body.js";
 import { readSettings } from "../settings/settings.js";
 import { measureSnippet } from "./snippet-size.js";
+import { loadThemeMap } from "./theme-map.js";
 
 const sourceField = document.getElementById("source");
+const languageField = document.getElementById("language");
 const insertButton = document.getElementById("insert");
 const errorLine = document.getElementById("error");
 const warningLine = document.getElementById("warning");
@@ -18,6 +21,48 @@ const warningLine = document.getElementById("warning");
  * nobody can use — the popup is closed while the options page is open.
  */
 const settings = readSettings();
+
+/**
+ * Started at load, awaited at insert. Reading the theme is asynchronous — the
+ * stylesheet has to have finished parsing — but it does not depend on anything
+ * the user does, so kicking it off now means the wait has almost always
+ * already elapsed by the time Insert is pressed.
+ *
+ * Held as the promise rather than resolved into a variable so there is no
+ * moment where the map is "not ready yet" and something has to decide what to
+ * do about it.
+ */
+const themeMap = loadThemeMap(document.getElementById("theme"));
+
+/**
+ * The dropdown is the bundle's own language list, read back from it rather
+ * than written out here. A hand-kept list would drift from what is actually
+ * registered the first time the vendored bundle is bumped, and the failure
+ * would be an entry that throws or a language quietly missing from the menu.
+ *
+ * Labels come from the same place. `getLanguage(id).name` is the display name
+ * upstream ships for each language, so "cpp" reads as "C++" without this file
+ * owning a translation table.
+ */
+function fillLanguageDropdown() {
+  const options = hljs
+    .listLanguages()
+    .map((id) => ({ id, label: hljs.getLanguage(id).name ?? id }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  for (const { id, label } of options) {
+    languageField.add(new Option(label, id));
+  }
+
+  // Plain text, deliberately, and not the last language used. Nothing detects
+  // yet, so any other default would be a guess presented as an answer — and
+  // the spec is explicit that the dropdown must never remember a previous
+  // choice, because that is how auto-detection stops working without anyone
+  // noticing. Ticket 04 replaces this default with the detected language.
+  languageField.value = "plaintext";
+}
+
+fillLanguageDropdown();
 
 /**
  * The compose window this popup was opened from.
@@ -48,8 +93,15 @@ async function insert() {
   // defaults for anything unset or unusable — so there is nothing to check
   // here, and no branch for "settings never configured".
   const { tabWidth, fontSize } = await settings;
+
+  // The theme is passed in as data, always, even for the plain-text composer
+  // that will not use it. Branching on `isPlainText` here would put a second
+  // reason to know about the composer's format into the one call that should
+  // not care: the seam already renders both and the caller picks.
   const { html, text } = buildCodeBlockHtml({
     source: sourceField.value,
+    language: languageField.value,
+    themeMap: await themeMap,
     tabWidth,
     fontSize,
   });

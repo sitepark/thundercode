@@ -21,6 +21,21 @@ textarea {
 }
 
 /*
+  Full width and stacked under its label rather than sitting beside it: the
+  list carries names as long as "Visual Basic .NET", and a dropdown that
+  resizes itself to whatever is selected makes the popup jump.
+*/
+label[for="language"] {
+  display: block;
+  margin: 0 0 0.25em;
+}
+
+select {
+  width: 100%;
+  margin: 0 0 1em;
+}
+
+/*
   Amber, not the error red, and deliberately not shouting. This is information
   the user may well act on by ignoring it, so it must not look like something
   has gone wrong.
