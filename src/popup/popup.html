@@ -3,6 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <title>ThunderCode</title>
+    <!--
+      The theme is linked here for one reason that is not styling: this is the
+      document the theme map is read out of, through the browser's own CSS
+      parser rather than a regex or a hand-written colour table. It is vendored
+      rather than pulled from a CDN, so it loads from the extension's own
+      origin and `cssRules` is readable without a SecurityError.
+
+      It sits before popup.css so that popup.css wins any overlap. Today there
+      is none — every selector in the theme is an `.hljs` one, and nothing in
+      this document carries those classes until ticket 06's preview does.
+    -->
+    <link
+      rel="stylesheet"
+      id="theme"
+      href="../../vendor/highlight.js-theme-github.css"
+    />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -19,6 +35,18 @@
       spellcheck="false"
       placeholder="Paste your code here"
     ></textarea>
+    <!--
+      Populated from the bundle itself rather than from a list written out
+      here, so the dropdown cannot drift from the languages that are actually
+      registered. Empty in the markup for the same reason.
+
+      It follows the textarea because that is the order of the work: paste
+      first, correct the language second. Ticket 04 adds an auto-detect entry
+      at the top and makes it the default; until something actually detects,
+      the honest default is the one that highlights nothing.
+    -->
+    <label for="language">Language</label>
+    <select id="language"></select>
     <!--
       Advisory only. It sits next to the textarea it describes and above the
       Insert button, which nothing here ever disables: a large paste is the

@@ -1,5 +1,15 @@
+import hljs from "../../vendor/highlight.js/common.js";
+
 const DEFAULT_FONT_SIZE = 13;
 const DEFAULT_TAB_WIDTH = 4;
+
+/**
+ * The absence of highlighting rather than a way of highlighting. It is a real
+ * registered language — running it produces escaped text and not one span — so
+ * the seam short-circuits it instead, which keeps the escaping of a block with
+ * no language identical to what it was before there was a highlighter.
+ */
+const PLAINTEXT = "plaintext";
 
 /**
  * Turns pasted source into the code block that gets inserted into the
@@ -10,19 +20,24 @@ const DEFAULT_TAB_WIDTH = 4;
  * only this function.
  *
  * It is pure by construction — no DOM, no `browser.*`, no I/O — which is why
- * the test runner needs no DOM environment.
+ * the test runner needs no DOM environment. The highlighter is a plain
+ * function dependency and stays inside that rule: it is arithmetic over a
+ * string, and the vendored bundle imports as ordinary ESM under both the popup
+ * and the test runner.
  *
- * The signature is the one the spec settles on, and it is complete from the
- * start so that later tickets change internals rather than callers:
- * `language` and `themeMap` are inert until highlighting arrives in ticket 03.
+ * The signature is the one the spec settles on and has not changed since
+ * ticket 02.
  *
  * @param {object} options
  * @param {string} options.source Raw source text, as pasted.
- * @param {string} [options.language] Language to render as, or `undefined` to
- *   ask for auto-detection.
- * @param {Record<string, string>} [options.themeMap] Token class to inline
- *   declaration string. Injected as data so the seam never reads a stylesheet
- *   itself.
+ * @param {string} [options.language] Language to render as. `undefined` asks
+ *   for auto-detection, which ticket 04 brings; until then it renders
+ *   unhighlighted, and says so through `detectedLanguage`.
+ * @param {Record<string, string>} [options.themeMap] Token class list to
+ *   inline declaration string, keyed exactly as the class attribute is emitted
+ *   (`"hljs-keyword"`, `"hljs-variable language_"`). Injected as data so the
+ *   seam never reads a stylesheet itself. Omitting it renders every token
+ *   unstyled rather than failing.
  * @param {number} [options.tabWidth] Spaces a tab expands to. Defaults to 4;
  *   ticket 10 makes it a setting.
  * @param {number} [options.fontSize] Block font size in px.
@@ -39,25 +54,120 @@ export function buildCodeBlockHtml({
   tabWidth,
   fontSize = DEFAULT_FONT_SIZE,
 }) {
-  // Normalisation is the first thing in the pipeline, before escaping and —
-  // from ticket 03 — before highlighting. A highlighter tokenising the raw
-  // paste would attach spans to whitespace that is about to be removed, so
-  // the order is load-bearing rather than incidental.
+  // Normalisation is the first thing in the pipeline, before highlighting and
+  // before escaping. A highlighter tokenising the raw paste would attach spans
+  // to whitespace that is about to be removed, and stripping a common indent
+  // out of finished markup means editing inside `<span>`s. The order is
+  // load-bearing rather than incidental.
   const text = normaliseSource(source, resolveTabWidth(tabWidth));
+  // Resolved once and used for both the rendering and the report, so the two
+  // cannot disagree: what comes back is always the language that was applied.
+  const appliedLanguage = resolveLanguage(language);
 
   return {
-    html: `<pre style="${preStyle(fontSize)}">${escapeHtml(text)}</pre>`,
+    html:
+      `<pre style="${preStyle(fontSize)}">` +
+      `${renderContent(text, appliedLanguage, themeMap)}</pre>`,
     // The normalised source itself, for the plain-text composer that has no
     // markup to take. It is returned rather than left internal because the
     // alternative is a second copy of the four transforms outside this module,
-    // and two copies drift. Ticket 03 must keep this the *unhighlighted* text:
-    // highlighting is a property of the HTML rendering only.
+    // and two copies drift. It stays the *unhighlighted* text now that there
+    // is a highlighter: highlighting is a property of the HTML rendering only,
+    // and there is no such thing as a highlighted plain-text mail. Note it is
+    // built from `text` and not from `html`, so no escaping or markup can
+    // reach it by accident.
     text,
-    // No highlighter yet, so plaintext is what rendered regardless of what was
-    // asked for. Reporting back the requested language would be a claim the
-    // output does not support. Ticket 03 makes this the language applied.
-    detectedLanguage: "plaintext",
+    // The language actually applied, never the one requested. Ticket 02
+    // hardcoded `plaintext` here because nothing was highlighted; now the two
+    // coincide only when nothing was highlighted, which is still the honest
+    // answer for a caller that named a language the bundle does not have.
+    detectedLanguage: appliedLanguage,
   };
+}
+
+/**
+ * What the block will actually be rendered as, which is not always what was
+ * asked for.
+ *
+ * `hljs.highlight` throws on a language it has never been given, so an
+ * unregistered name — a stale setting, a caller guessing at an alias the
+ * bundle does not carry, ticket 04 one day handing back something odd — must
+ * be caught here. It degrades to no highlighting, because a monochrome block
+ * is a far better outcome than an exception where a code block should be.
+ *
+ * `undefined` lands in the same place today. That is the auto-detection
+ * request the signature has always described, and ticket 04 is where it stops
+ * meaning "no highlighting" and starts meaning `hljs.highlightAuto`. Nothing
+ * here has to move for that: it is one more branch in this function.
+ */
+function resolveLanguage(language) {
+  return language && hljs.getLanguage(language) ? language : PLAINTEXT;
+}
+
+/**
+ * The `<pre>`'s content: the code, escaped, with a `style` attribute on every
+ * token the theme has an opinion about.
+ *
+ * The highlighter escapes its own output, so the two paths escape exactly
+ * once each and never both.
+ */
+function renderContent(text, language, themeMap) {
+  if (language === PLAINTEXT) return escapeHtml(text);
+
+  // `ignoreIllegals` so a wrong pick from the dropdown degrades to imperfect
+  // colour rather than to none. Without it, source that trips the language's
+  // `illegal` rule comes back as plain escaped text while the result still
+  // names the language — the block would then silently claim a highlighting it
+  // does not have, which is the one thing `detectedLanguage` exists to prevent.
+  const highlighted = hljs.highlight(text, { language, ignoreIllegals: true });
+
+  return inlineTokenStyles(highlighted.value, themeMap);
+}
+
+/**
+ * Rewrites highlight.js's `class` attributes into inline `style` attributes,
+ * which is the whole of the reply-quoting contract: a class survives only as
+ * long as the stylesheet that explains it, and the recipient's client drops
+ * that stylesheet the first time anyone replies.
+ *
+ * Done with a regular expression, which is worth defending. The input is not
+ * arbitrary HTML: highlight.js's `HTMLRenderer` emits a closed grammar of
+ * escaped text, `<span class="…">` and `</span>` and nothing else, with no
+ * attribute able to contain a `"`. It also could not be done with a parser
+ * here even if that were preferable — the seam is pure and the test runner has
+ * no DOM, which is exactly the constraint that keeps this module testable.
+ */
+function inlineTokenStyles(highlighted, themeMap) {
+  return highlighted.replace(/<span class="([^"]*)">/g, (_tag, classList) => {
+    const declarations = lookUpDeclarations(classList, themeMap);
+
+    // A class the theme says nothing about leaves a bare `<span>` rather than
+    // no span at all. Dropping it would mean tracking which `</span>` to drop
+    // with it, and the theme's own author leaves several token classes
+    // (`hljs-tag`, `hljs-params`, `hljs-punctuation`) deliberately unstyled —
+    // an unstyled span is the intended rendering there, not a gap.
+    return declarations ? `<span style="${declarations}">` : "<span>";
+  });
+}
+
+/**
+ * highlight.js does not emit one class per span. A tiered scope such as
+ * `title.class` becomes `class="hljs-title class_"`, and the theme has
+ * selectors to match: `.hljs-title.class_`, `.hljs-variable.language_`.
+ *
+ * So the exact class list is tried first and the first class only as a
+ * fallback. The order is not cosmetic. In the GitHub theme
+ * `.hljs-variable.language_` is grouped with the keyword colour while bare
+ * `.hljs-variable` is grouped with the constant colour, so looking up only the
+ * first class would paint every `this` and `self` the wrong colour — silently,
+ * and only in the languages that have them.
+ *
+ * The fallback still earns its place: it is what renders `hljs-title class_
+ * inherited__` when a theme styles only `.hljs-title`, and it is where an
+ * unknown modifier goes rather than off a cliff.
+ */
+function lookUpDeclarations(classList, themeMap = {}) {
+  return themeMap[classList] ?? themeMap[classList.split(" ")[0]];
 }
 
 /**
@@ -220,6 +330,10 @@ function preStyle(fontSize) {
  * The three characters that can end text content and start markup. Quotes are
  * left alone: the source only ever lands in text content, never in an
  * attribute value.
+ *
+ * The unhighlighted path only. highlight.js escapes its own output, so running
+ * this over it as well would turn every `&lt;` into `&amp;lt;` and put the
+ * entities themselves in the message.
  */
 function escapeHtml(text) {
   return text
