@@ -36,6 +36,34 @@ select {
 }
 
 /*
+  Styles the container and nothing inside it. Everything the eye reads as the
+  block — font, size, line height, border, padding, background, wrapping — is
+  already on the `<pre>` as inline style, put there by the seam, and any rule
+  here that reached it would be a difference between what is previewed and
+  what is inserted. That is also why there is no font size in this file: the
+  block's size comes from the settings the seam was called with, so there is
+  never a second copy of it to keep in step.
+
+  `overflow: auto` is the one honest divergence. A five-hundred-line paste
+  would otherwise make the popup as tall as the screen and push the Insert
+  button off it, so the preview is given a window onto the block rather than
+  the whole of it. It changes how much is visible, never how it renders — and
+  it makes the container a block formatting context, so the `<pre>`'s own
+  12px margins stay inside the box where they can be seen, as they will be in
+  the message.
+
+  Line wrapping is a divergence nobody can fix: `pre-wrap` wraps to the width
+  it is given, and this popup is 32em while the recipient's window is
+  whatever it is. The preview is faithful about colour, type and indentation,
+  which is what it is for.
+*/
+#preview {
+  margin: 0 0 1em;
+  max-height: 18em;
+  overflow: auto;
+}
+
+/*
   Amber, not the error red, and deliberately not shouting. This is information
   the user may well act on by ignoring it, so it must not look like something
   has gone wrong.
