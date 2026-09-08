@@ -62,11 +62,13 @@ const visibleText = (html) =>
  * leaves six token classes empty on purpose.
  */
 const themeMap = {
-  // The container rather than a token: the block's own text and background
-  // colour, keyed by the class highlight.js puts on the element that wraps the
-  // code. Nothing like the shipped theme's pair, so a test reading them back
-  // cannot pass against a colour written into the seam by hand.
-  [CONTAINER_CLASS]: "color: #112233; background-color: #eeddcc",
+  // The container rather than a token: the colour of the text no token claims,
+  // keyed by the class highlight.js puts on the element that wraps the code.
+  // Nothing like the shipped theme's, so a test reading it back cannot pass
+  // against a colour written into the seam by hand. Text colour only — the
+  // block's fill is its own chrome, chosen with the border, and a theme's
+  // `.hljs` background is the page colour it assumes rather than a fill.
+  [CONTAINER_CLASS]: "color: #112233",
   "hljs-keyword": "color: #aa0000",
   "hljs-string": "color: #00aa00; font-style: italic",
   "hljs-comment": "color: #777777; font-style: italic",
@@ -505,12 +507,12 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * The block's own two colours were the last ones still written out inside
-     * the seam. They arrive as data like every token colour now, which is what
+     * The block's own text colour was the last one still written out inside
+     * the seam. It arrives as data like every token colour now, which is what
      * makes swapping the theme stylesheet a one-file change rather than a
-     * one-file change plus two hex codes nobody remembers are there.
+     * one-file change plus a hex code nobody remembers is there.
      */
-    it("takes its own text and background colour from the theme", () => {
+    it("takes its own text colour from the theme", () => {
       const style = preStyle(
         buildCodeBlockHtml({ source: "x", themeMap }).html,
       );
@@ -520,7 +522,8 @@ describe("buildCodeBlockHtml", () => {
 
     /**
      * A caller with no theme — or a popup whose stylesheet failed to load —
-     * still gets a block that reads as one, in the seam's own colours.
+     * still gets a block that reads as one, in the seam's own colours. The
+     * fill is stated either way, since it never came from the theme.
      */
     it("still states both colours when no theme is injected", () => {
       const style = preStyle(buildCodeBlockHtml({ source: "x" }).html);
@@ -532,10 +535,12 @@ describe("buildCodeBlockHtml", () => {
 
     /**
      * The container entry shares the map with the token entries, so the one
-     * thing worth pinning is that it cannot leak onto a token: a background
-     * per span would paint a stripe behind every keyword.
+     * thing worth pinning is that it cannot leak onto a token. The background
+     * count goes with it: one for the whole block, never one per span, which
+     * would both paint a stripe behind every keyword and multiply the size of
+     * the message.
      */
-    it("never puts the container's colours on a token", () => {
+    it("never puts the container's colour on a token", () => {
       const { html } = buildCodeBlockHtml({
         source: "const a = 1;",
         language: "javascript",

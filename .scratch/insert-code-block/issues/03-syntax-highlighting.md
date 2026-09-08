@@ -300,17 +300,16 @@ renders and that picking from it works. Same hands-on pass.
   network, and the whole vendored tree is 152 KB. If popup-open latency ever
   becomes noticeable, the fix is a smaller language subset, not a build step.
 - **The `<pre>`'s own `color: #24292e` is hardcoded and duplicates the theme's
-  `.hljs` base colour.** It is not derived from the stylesheet — `.hljs` is
-  excluded from the map by design — so swapping the theme changes the tokens and
-  leaves the block's body text where it was. Whoever swaps the theme should
-  check that one constant in `preStyle()`. The `<pre>`'s background is
-  deliberately *not* the theme's `#ffffff`: `#f6f8fa` is what makes the block
-  read as a block, and `background` is not whitelisted anyway.
+  `.hljs` base colour.** *Superseded — see "Review fixes" below: it is read
+  from `.hljs` now.* The second half of this note survived the review and
+  became the reason the fix only took the colour: the `<pre>`'s background is
+  deliberately **not** the theme's `#ffffff`, because `#f6f8fa` is what makes
+  the block read as a block.
 - **`hljs-class` and `hljs-function` render unstyled** in php and go, as
   described above. Upstream's own theme has no rule for these legacy scope
   names.
 
-### Review fixes: the block's own colours are theme data now
+### Review fixes: the block's own text colour is theme data now
 
 `preStyle` still hardcoded `color: #24292e` and `background: #f6f8fa`, which
 contradicted the spec's *"colours are never transcribed by hand"* and meant
@@ -318,26 +317,28 @@ swapping the theme had stopped being the one-file change the spec promises.
 
 The theme's `.hljs` base rule — the one `TOKEN_SELECTOR` deliberately excluded
 as "the container rather than any token" — is now read by `theme-map.js` under
-a whitelist of its own (`color` and `background-color`, through the longhand
-accessors for the same reason the token list gives) and filed in the map under
-`CONTAINER_CLASS`. That key is exported from the seam rather than written out
-in both modules, since it is a string the two have to agree on. `preStyle`
-looks it up and falls back to its own unthemed pair when no theme reaches it,
-so the seam still produces a correct block for a caller that passes no map —
-which the tests rely on, and which is also what a failed stylesheet load gets.
+a whitelist of its own and filed in the map under `CONTAINER_CLASS`. That key
+is exported from the seam rather than written out in both modules, since it is
+a string the two have to agree on. `preStyle` looks it up and falls back to its
+own unthemed colour when no theme reaches it, so the seam still produces a
+correct block for a caller that passes no map — which the tests rely on, and
+which is also what a failed stylesheet load gets.
 
-**One visible consequence, worth flagging.** The review assumed both colours had
-been copied from `.hljs`. Only the text colour was: the vendored GitHub theme's
-rule is `color: #24292e; background: #ffffff`, so honouring the stylesheet
-changes the inserted block's background from the hand-picked `#f6f8fa` to the
-theme's white. The block still reads as one — it keeps its `#d0d7de` border and
-its padding, and no hljs theme states a border, so that colour stays the seam's
-own decision rather than a transcription of anything. Taking the theme's word
-for it is the point: a hardcoded light-grey background is exactly what would
-turn a future theme swap into an unreadable block instead of a differently
-coloured one.
+**The text colour only, and not the background.** The first pass at this fix
+took both, on the reading that both had been copied from `.hljs`. Only the text
+colour had been: the vendored GitHub theme's rule is
+`color: #24292e; background: #ffffff`, and a theme's `.hljs` background is the
+*page* colour it assumes it is being read on, not a fill for a code block.
+Honouring it painted the block white on a white message and left the border
+doing all the work — against the output contract's *"a light background"* and
+story 23's *"delimited by a border, padding and a background"*.
+
+So the fill stays `#f6f8fa` and sits in `preStyle` next to the `#d0d7de`
+border, the two of them commented as one decision: the block's own chrome,
+which no hljs theme states and which therefore survives a theme swap unchanged.
+Only colours a theme actually has an opinion about come from the theme.
 
 Covered in the existing fixture-map style, with an `hljs` entry in the fixture
 that looks nothing like the shipped theme's: the container entry is used when it
-is there, both colours are still stated when it is not, and it never leaks onto
-a token span.
+is there, the block is still fully coloured when it is not, and it never leaks
+onto a token span.

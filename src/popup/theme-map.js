@@ -3,7 +3,7 @@ import { CONTAINER_CLASS } from "../code-block/build-code-block-html.js";
 /**
  * Reduces the vendored theme stylesheet to the flat `themeMap` the seam takes.
  *
- * Colours are never transcribed by hand — the block's own text and background
+ * Colours are never transcribed by hand — the block's own text colour
  * included, which is why the theme's `.hljs` base rule is read here alongside
  * every token rule. The stylesheet stays the single source of truth and
  * swapping themes stays a one-file change, because the thing that reads it is
@@ -43,20 +43,19 @@ const TOKEN_PROPERTIES = [
  * behind one word, and a weight or style there would be the theme deciding
  * that all code is bold.
  *
- * `backgroundColor` and not `background`, for the reason the token list gives:
- * today's theme writes the shorthand (`background: #ffffff`), and only the
- * longhand accessor sees through it. Emitting the longhand also travels
- * better — a mail client that strips the `background` shorthand as a layout
- * property still honours `background-color`.
+ * Text colour only, and deliberately not the background. A theme's `.hljs`
+ * background is the *page* colour it assumes it is being read on — the GitHub
+ * light theme says `#ffffff` — not a fill for a code block. Taking it would
+ * paint the block white on a white message and leave the border doing all the
+ * work, when the spec asks for the block to be delimited by "a border, padding
+ * and a background". The fill is the block's own chrome, chosen with the
+ * border, and lives in the seam next to it.
  */
-const CONTAINER_PROPERTIES = [
-  ["color", "color"],
-  ["background-color", "backgroundColor"],
-];
+const CONTAINER_PROPERTIES = [["color", "color"]];
 
 /**
- * The theme's base rule: the block's own text and background colour, which
- * belong to no token and were the last two colours still written out by hand.
+ * The theme's base rule: the block's own text colour, which belongs to no
+ * token and was the last colour still written out by hand.
  *
  * Exactly `.hljs` and nothing more. The structural `pre code.hljs` and
  * `code.hljs` rules describe how a theme lays a block out on a web page —

@@ -21,11 +21,11 @@ export const CODE_BLOCK_DEFAULTS = Object.freeze({
 });
 
 /**
- * The key the block's own colours are looked up under in the `themeMap`.
+ * The key the block's own text colour is looked up under in the `themeMap`.
  *
  * `hljs` is the class highlight.js puts on the element *containing* the code,
- * and it is where a theme states the block's text and background colour — the
- * two colours that are not a property of any one token. Nothing emitted here
+ * and it is where a theme states the colour of the text that no token claims —
+ * everything between the highlighted spans. Nothing emitted here
  * carries the class, since the markup contract forbids class attributes
  * outright; the class name is only the key the theme files themselves use, so
  * the map stays one flat table of "what the theme says about this class"
@@ -48,7 +48,7 @@ export const CONTAINER_CLASS = "hljs";
  * obviously a code block, since a block that reaches a recipient with no
  * colour at all still has to read as one.
  */
-const UNTHEMED_CONTAINER = "color: #24292e; background-color: #f6f8fa";
+const UNTHEMED_CONTAINER = "color: #24292e";
 
 /**
  * The absence of highlighting rather than a way of highlighting. It is a real
@@ -86,10 +86,10 @@ const PLAINTEXT = "plaintext";
  * @param {Record<string, string>} [options.themeMap] Highlight.js class list
  *   to inline declaration string, keyed exactly as the class attribute is
  *   emitted (`"hljs-keyword"`, `"hljs-variable language_"`), plus the
- *   `CONTAINER_CLASS` entry carrying the block's own text and background
- *   colour. Injected as data so the seam never reads a stylesheet itself.
- *   Omitting it renders every token unstyled and the block in its unthemed
- *   colours rather than failing.
+ *   `CONTAINER_CLASS` entry carrying the block's own text colour. Injected as
+ *   data so the seam never reads a stylesheet itself. Omitting it renders
+ *   every token unstyled and the block in its unthemed text colour rather
+ *   than failing.
  * @param {number} [options.tabWidth] Spaces a tab expands to. Falls back to
  *   `CODE_BLOCK_DEFAULTS.tabWidth`, as does anything that is not a positive
  *   whole number.
@@ -417,13 +417,13 @@ function stripCommonIndent(lines) {
  * block the first time anyone replies. The font size is set here and
  * inherited, never repeated per token.
  *
- * The two colours come from the theme rather than from this file, for the same
- * reason every token colour does: a hardcoded background is what makes a theme
- * swap stop being a one-file change, and it is the one that shows up as
- * unreadable text rather than as a wrong shade the day someone swaps in a
- * theme with a different container colour. The border is not among them — no
- * hljs theme states one, so it is this block's own decision and not a colour
- * transcribed from anywhere.
+ * The text colour comes from the theme rather than from this file, for the
+ * same reason every token colour does: hardcoding it is what makes a theme
+ * swap stop being a one-file change, and it is the colour that shows up as
+ * unreadable text the day someone swaps in a theme with a different container
+ * colour. The border and the background are not among them — no hljs theme
+ * states a code-block fill, so both are this block's own decision rather than
+ * colours transcribed from anywhere.
  */
 function preStyle(fontSize, themeMap) {
   return [
@@ -439,7 +439,15 @@ function preStyle(fontSize, themeMap) {
     "white-space: pre-wrap",
     "margin: 12px 0",
     "padding: 12px",
+    // Border and fill together are the block's own chrome, not theme colours.
+    // No hljs theme states a code-block fill: its `.hljs` background is the
+    // page colour the theme assumes it is read on, which for a light theme is
+    // white and would leave the block invisible against a white message. The
+    // spec asks for the block to be delimited by "a border, padding and a
+    // background", so these two are chosen here, together, and stay put when
+    // the theme is swapped.
     "border: 1px solid #d0d7de",
+    "background-color: #f6f8fa",
     // Last, so that a theme stating something this list already covers wins,
     // and so the whole of what the theme contributes reads as one run.
     themeMap?.[CONTAINER_CLASS] ?? UNTHEMED_CONTAINER,
