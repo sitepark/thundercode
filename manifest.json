@@ -9,11 +9,15 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["compose", "scripting"],
+  "permissions": ["compose", "scripting", "storage"],
   "compose_action": {
     "default_title": "Insert code block",
     "default_area": "formattoolbar",
     "default_popup": "src/popup/popup.html",
     "default_icon": "icons/thundercode.svg"
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": false
   }
 }

@@ -1,12 +1,30 @@
-const DEFAULT_FONT_SIZE = 13;
-const DEFAULT_TAB_WIDTH = 4;
+/**
+ * The values the seam falls back to, and the only place either number is
+ * written.
+ *
+ * They live here rather than in the settings module because they are
+ * properties of the block, not of the settings UI: `buildCodeBlockHtml` has to
+ * produce a sane block for any caller, including one that never reads storage.
+ * Exporting them lets the settings module fill an empty field from the same
+ * constant instead of restating it — the same number written twice is the
+ * failure this avoids, and an options page that displays a different default
+ * from the one the block uses would be a lie that nothing catches.
+ *
+ * Frozen because it is shared across modules and nothing should be able to
+ * change what "default" means at runtime.
+ */
+export const CODE_BLOCK_DEFAULTS = Object.freeze({
+  tabWidth: 4,
+  fontSize: 13,
+});
 
 /**
  * Turns pasted source into the HTML that gets inserted into the message.
  *
  * This is the seam the whole feature is tested through. Everything behind it
- * is an internal: nothing else in this module is exported, and tests drive
- * only this function.
+ * is an internal: no step of the pipeline is exported — the only other export
+ * is the defaults it falls back to, which is data rather than a step — and
+ * tests drive only this function.
  *
  * It is pure by construction — no DOM, no `browser.*`, no I/O — which is why
  * the test runner needs no DOM environment.
@@ -22,9 +40,14 @@ const DEFAULT_TAB_WIDTH = 4;
  * @param {Record<string, string>} [options.themeMap] Token class to inline
  *   declaration string. Injected as data so the seam never reads a stylesheet
  *   itself.
- * @param {number} [options.tabWidth] Spaces a tab expands to. Defaults to 4;
- *   ticket 10 makes it a setting.
- * @param {number} [options.fontSize] Block font size in px.
+ * @param {number} [options.tabWidth] Spaces a tab expands to. Falls back to
+ *   `CODE_BLOCK_DEFAULTS.tabWidth`, as does anything that is not a positive
+ *   whole number.
+ * @param {number} [options.fontSize] Block font size in px. Falls back to
+ *   `CODE_BLOCK_DEFAULTS.fontSize` when omitted. Unlike `tabWidth` it is not
+ *   otherwise guarded: a bad number here makes one CSS declaration the client
+ *   drops, not an exception, and the settings module resolves it before the
+ *   popup ever gets this far.
  * @returns {{ html: string, detectedLanguage: string }} `detectedLanguage` is
  *   the language the block was actually rendered with, which the popup shows
  *   back to the user.
@@ -34,7 +57,7 @@ export function buildCodeBlockHtml({
   language,
   themeMap,
   tabWidth,
-  fontSize = DEFAULT_FONT_SIZE,
+  fontSize = CODE_BLOCK_DEFAULTS.fontSize,
 }) {
   // Normalisation is the first thing in the pipeline, before escaping and —
   // from ticket 03 — before highlighting. A highlighter tokenising the raw
@@ -53,15 +76,20 @@ export function buildCodeBlockHtml({
 
 /**
  * The seam is handed whatever the caller has: from ticket 10 that is a number
- * parsed out of a settings field, which is `NaN` while the field is empty and
- * could be `0`. Either would make tab expansion throw, so anything that is not
- * a positive whole number becomes the default — a block indented at four is a
+ * out of a settings field, which is `NaN` while the field is empty and could
+ * be `0`. Either would make tab expansion throw, so anything that is not a
+ * positive whole number becomes the default — a block indented at four is a
  * far better failure than no block at all.
+ *
+ * Ticket 10's settings module coerces the same value before it arrives, so in
+ * the popup's path this guard never fires. It stays because it belongs to the
+ * seam rather than to the settings UI: the seam is callable by anyone, and
+ * every other caller would otherwise have to know this.
  */
 function resolveTabWidth(tabWidth) {
   return Number.isInteger(tabWidth) && tabWidth > 0
     ? tabWidth
-    : DEFAULT_TAB_WIDTH;
+    : CODE_BLOCK_DEFAULTS.tabWidth;
 }
 
 /**

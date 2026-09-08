@@ -37,13 +37,36 @@ describe("manifest", () => {
   });
 
   it("requests only the permissions the code actually uses", () => {
-    expect([...manifest.permissions].sort()).toEqual(["compose", "scripting"]);
+    expect([...manifest.permissions].sort()).toEqual([
+      "compose",
+      "scripting",
+      "storage",
+    ]);
+  });
+
+  /**
+   * Without this key the options page exists in the repo and nowhere in the
+   * product: there is no other route to it, since the popup deliberately does
+   * not link to settings.
+   */
+  it("offers an options page, which is the only way to reach the settings", () => {
+    expect(manifest.options_ui.page).toBeTruthy();
+  });
+
+  /**
+   * Embedded in the Add-ons Manager rather than opened as a tab. Two numbers
+   * do not warrant a tab of their own, and the inline pane is where anyone
+   * looking for an add-on's preferences looks first.
+   */
+  it("embeds that page in the Add-ons Manager rather than opening a tab", () => {
+    expect(manifest.options_ui.open_in_tab).toBe(false);
   });
 
   it("references only files that exist", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
+      manifest.options_ui.page,
     ];
     for (const path of referenced) {
       expect(existsSync(resolve(repoRoot, path)), path).toBe(true);

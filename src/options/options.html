@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ThunderCode settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <!--
+      Two fields and nothing else. These are set roughly once and then never
+      again, which is exactly why they are here rather than in the popup: the
+      popup is opened every time code goes into a message, and a setting sitting
+      in it would be re-read and re-decided daily for no benefit.
+
+      No `value` attributes and no `min`/`max` here. Both the current values and
+      the accepted range are written by options.js from the settings module, so
+      the numbers exist in one place rather than being restated in markup that
+      nothing checks.
+    -->
+    <label class="setting">
+      <span class="label">Tab width</span>
+      <input id="tab-width" type="number" step="1" />
+      <span class="unit">spaces</span>
+    </label>
+    <p class="hint">
+      What a tab in the pasted source expands to. Tabs are always expanded,
+      because mail clients disagree about where tab stops sit.
+    </p>
+
+    <label class="setting">
+      <span class="label">Font size</span>
+      <input id="font-size" type="number" step="1" />
+      <span class="unit">px</span>
+    </label>
+    <p class="hint">
+      The size of the code inside the inserted block. In pixels, because em and
+      rem are unreliable in mail clients.
+    </p>
+
+    <!--
+      Saved on change, so there is no Save button to forget. The status line
+      says so; `role="status"` gets it announced without stealing focus.
+    -->
+    <p id="status" class="status" role="status"></p>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

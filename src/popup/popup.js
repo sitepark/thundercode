@@ -1,11 +1,23 @@
 import { buildCodeBlockHtml } from "../code-block/build-code-block-html.js";
 import { insertIntoBody } from "../compose/insert-into-body.js";
+import { readSettings } from "../settings/settings.js";
 import { measureSnippet } from "./snippet-size.js";
 
 const sourceField = document.getElementById("source");
 const insertButton = document.getElementById("insert");
 const errorLine = document.getElementById("error");
 const warningLine = document.getElementById("warning");
+
+/**
+ * Tab width and font size, read once as the popup opens.
+ *
+ * Kept as the promise rather than awaited into a variable: the read starts
+ * immediately, so it is long finished by the time anyone has pasted anything,
+ * and awaiting it inside the insert removes the window where a fast Insert
+ * would find it not yet loaded. Re-reading per insert would buy freshness
+ * nobody can use — the popup is closed while the options page is open.
+ */
+const settings = readSettings();
 
 /**
  * The compose window this popup was opened from.
@@ -26,7 +38,15 @@ async function findComposeTab() {
 
 async function insert() {
   const tab = await findComposeTab();
-  const { html } = buildCodeBlockHtml({ source: sourceField.value });
+  // Both settings arrive resolved — `readSettings` falls back to the seam's
+  // defaults for anything unset or unusable — so there is nothing to check
+  // here, and no branch for "settings never configured".
+  const { tabWidth, fontSize } = await settings;
+  const { html } = buildCodeBlockHtml({
+    source: sourceField.value,
+    tabWidth,
+    fontSize,
+  });
 
   // Set before the block goes in, never after. The default `"auto"` sends an
   // HTML message as plain text when it sees no formatting, which would drop
