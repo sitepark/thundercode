@@ -1,16 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2b2a33" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
   <!--
-    Painted with a literal colour rather than `context-fill`. Thunderbird
-    never sets `-moz-context-properties` on an add-on's action button — its
-    `chrome://messenger/content/messenger/webextensions.css` applies the icon
-    as a `list-style-image` and nothing more — so a context paint resolves to
-    nothing and the button comes up blank. The theme variant lives in
-    `thundercode-light.svg` and is selected by `theme_icons` in the manifest,
-    which is the mechanism that stylesheet does implement.
+    The icon recolours itself, because neither of the two mechanisms that
+    would normally do it for an add-on works here.
 
-    `width`/`height` alongside the `viewBox` so the file has an intrinsic size
-    to be scaled from wherever it is used at its natural size.
+    Not `context-fill`: Thunderbird applies an action icon as a
+    `list-style-image` — `chrome://messenger/content/messenger/webextensions.css`
+    is the whole of the integration — and nothing along that path sets
+    `-moz-context-properties`, so a context paint resolves to no paint at all
+    and the button comes up blank. That is the idiom Thunderbird's own chrome
+    icons use, which is exactly why it looks like the right thing to copy.
+
+    Not `theme_icons` either, though that one does work: it is resolved once
+    and then held in the WebExtension startup cache under the add-on's id and
+    *version*, so it goes stale across any reinstall that does not bump the
+    version — which is every reinstall during development. A drawing that
+    depends on nothing outside this file cannot go stale.
+
+    What is left is the media query below. An SVG used as an image is its own
+    document, but Gecko propagates the embedding element's used colour scheme
+    into it (bug 1782595, Firefox 105), so `prefers-color-scheme` here reports
+    the toolbar's scheme and not the page's or the system's. Verified through
+    `list-style-image` specifically, which is the property Thunderbird uses.
   -->
+  <style>
+    path { stroke: #2b2a33; }
+    @media (prefers-color-scheme: dark) {
+      path { stroke: #fbfbfe; }
+    }
+  </style>
   <path d="M6 5.5 3.5 8 6 10.5" />
   <path d="M10 5.5 12.5 8 10 10.5" />
 </svg>

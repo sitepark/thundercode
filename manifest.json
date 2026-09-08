@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ThunderCode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Insert syntax-highlighted code blocks into Thunderbird messages.",
   "browser_specific_settings": {
     "gecko": {
@@ -18,19 +18,7 @@
     "default_title": "Insert code block",
     "default_area": "formattoolbar",
     "default_popup": "src/popup/popup.html",
-    "default_icon": "icons/thundercode.svg",
-    "theme_icons": [
-      {
-        "light": "icons/thundercode-light.svg",
-        "dark": "icons/thundercode.svg",
-        "size": 16
-      },
-      {
-        "light": "icons/thundercode-light.svg",
-        "dark": "icons/thundercode.svg",
-        "size": 32
-      }
-    ]
+    "default_icon": "icons/thundercode.svg"
   },
   "commands": {
     "_execute_compose_action": {

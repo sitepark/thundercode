@@ -10,22 +10,34 @@
 - [x] The inserted block is not spell-checked
 - [x] The block has rounded corners
 - [ ] **Hands-on:** the button shows the `< >` glyph in the compose window's format toolbar, on the default theme
-- [ ] **Hands-on:** the same, with a dark theme applied — the light-ink variant should be picked automatically
+- [ ] **Hands-on:** the same, with a dark theme applied — the glyph should be light ink, as legible as Thunderbird's own buttons beside it
 - [ ] **Hands-on:** insert a block containing identifiers a dictionary would reject (`getEnv`, `usr`, `strlen`) and confirm no red underlines appear inside it, while a misspelling in the surrounding prose still gets one
 - [ ] **Hands-on:** the block's corners are rounded in the compose window and in the message as received
 
 ## Comments
 
-### The icon (`icons/*.svg`, `manifest.json`)
+### The icon (`icons/thundercode.svg`, `manifest.json`)
 
-The button was blank because the icon painted itself with `stroke="context-fill, currentColor"` and nothing was ever going to paint it.
+Fixed twice. The first attempt was right about the cause and wrong about the remedy, and the second round of feedback — "other icons are displayed white, the icon of this extension is dark and hard to see" — is what exposed that.
 
-Two faults, and the second is the one that matters. The value is not valid CSS paint syntax — `context-fill` takes no comma-separated fallback list — but even written correctly it would not have worked here: Thunderbird applies an add-on's action icon as a `list-style-image`, and nothing along that path sets `-moz-context-properties`. Read out of the installed build rather than assumed:
-`chrome://messenger/content/messenger/webextensions.css` is the whole of the integration and sets only `list-style-image` / `content` from the `--webextension-toolbar-image*` variables, and `-moz-context-properties` appears nowhere in the messenger chrome. So `context-fill` and `context-stroke` — the idiom Thunderbird's *own* icons are drawn with, and the reason it looks like the right thing to copy — resolve to no paint at all in an add-on's icon.
+**Why the button was blank.** The icon painted itself with `stroke="context-fill, currentColor"` and nothing was ever going to paint it. Two faults, and the second is the one that matters: the value is not valid paint syntax, `context-fill` taking no comma-separated fallback list — but even written correctly it would not have worked. Read out of the installed build rather than assumed, `chrome://messenger/content/messenger/webextensions.css` is the whole of the integration for an action button and sets only `list-style-image` from the `--webextension-toolbar-image*` variables, and `-moz-context-properties` appears nowhere in the messenger chrome. So `context-fill` and `context-stroke` — the idiom Thunderbird's *own* icons are drawn with, and the reason it looks like the right thing to copy — resolve to no paint at all in an add-on's icon.
 
-The fix is that an add-on icon has to state its colours. Which loses the automatic recolouring, so the polarity is handled the way the same stylesheet does implement: `theme_icons`, one drawing per polarity, `icons/thundercode.svg` in dark ink for light toolbars and `icons/thundercode-light.svg` in light ink for dark ones. `default_icon` stays the dark-ink file, because the default theme uses `default_icon` on a light background and ignores `theme_icons` there. Both sizes are declared at the same two files, since an SVG scales and declaring only 16 would leave the `-2x` variables the hi-dpi media query reads unset.
+**Why the first fix then went dark-on-dark.** It replaced the context paint with a literal colour and handled the theme with `theme_icons`, two files, one drawing per polarity. `theme_icons` is genuinely supported here — `ExtensionToolbarButtons.jsm` passes `theme_icons` into `IconDetails.normalize` and `webextensions.css` selects the light variant under `@media (prefers-color-scheme: dark)` — but it never got read, because the button's icon data is resolved once through `StartupCache.get`, whose key is `[extension.id, extension.version, ...]`. The version was still `0.1.0` across the reinstall, so the cache served the entry computed by the previous install, from a manifest that had no `theme_icons` in it. All three CSS variables kept pointing at the one dark-ink file.
 
-`tests/manifest.test.js` pins both halves: no context paint in any declared icon, and a light variant distinct from the dark one. That test is the regression guard for a bug whose only symptom is a blank button.
+**The fix.** The icon recolours itself, and depends on nothing outside its own file:
+
+```
+path { stroke: #2b2a33; }
+@media (prefers-color-scheme: dark) { path { stroke: #fbfbfe; } }
+```
+
+An SVG used as an image is its own document, but Gecko propagates the embedding element's used colour scheme into it — bug 1782595, landed in Firefox 105, so comfortably below the 128 floor — which makes `prefers-color-scheme` inside the file report the toolbar's scheme rather than the system's. Verified here rather than taken on trust: rendered through `list-style-image` specifically, the property Thunderbird actually uses, inside `color-scheme: light` and `color-scheme: dark` containers. Light gives `#2b2a33` strokes, dark gives `#fbfbfe`.
+
+So `theme_icons` and the second file are gone. One drawing, one file, and no way for it to be stale — which is the property the startup cache took away.
+
+The version is bumped to `0.1.1` regardless. It invalidates the cache entry that hid the last fix, and the artefact did change.
+
+`tests/manifest.test.js` pins both halves: no context paint, and a dark-scheme rule rather than a second file. It is the regression guard for a bug whose only symptom is a button nobody can see.
 
 ### Spell checking (`src/code-block/build-code-block-html.js`)
 

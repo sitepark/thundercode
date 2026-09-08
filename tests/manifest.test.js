@@ -142,54 +142,45 @@ describe("manifest", () => {
   });
 
   /**
-   * The button shipped blank once, and this is the reason it did.
+   * The button shipped blank once, then shipped dark ink on a dark toolbar,
+   * and both times the cause was an icon that expected something else to
+   * colour it.
    *
-   * An add-on's action icon is applied by Thunderbird as a `list-style-image`
-   * — see `chrome://messenger/content/messenger/webextensions.css`, which is
-   * the whole of the integration — and nothing along that path sets
-   * `-moz-context-properties`. So `context-fill` and `context-stroke`, the
-   * idiom Thunderbird's *own* chrome icons are drawn with, resolve to no paint
-   * at all here and the button comes up empty. An add-on icon has to state its
-   * colours.
+   * Nothing will. Thunderbird applies an action icon as a `list-style-image`
+   * — `chrome://messenger/content/messenger/webextensions.css` is the whole of
+   * the integration — and nothing on that path sets
+   * `-moz-context-properties`, so `context-fill`, the idiom Thunderbird's own
+   * chrome icons are drawn with, paints nothing at all in an add-on's. The
+   * `theme_icons` manifest key does work, but it is resolved once into the
+   * WebExtension startup cache under the add-on's id and version, so it goes
+   * stale across every reinstall that does not bump the version.
+   *
+   * So the icon colours itself, and these two assertions are what stop either
+   * mechanism from creeping back in.
    */
-  describe("toolbar icons", () => {
-    const icons = [
-      manifest.compose_action.default_icon,
-      ...manifest.compose_action.theme_icons.flatMap(({ light, dark }) => [
-        light,
-        dark,
-      ]),
-    ];
+  describe("the toolbar icon", () => {
+    // Comments stripped first: the file that explains why `context-fill`
+    // cannot be used here has to be able to name it.
+    const svg = readFileSync(
+      resolve(repoRoot, manifest.compose_action.default_icon),
+      "utf8",
+    ).replace(/<!--[\s\S]*?-->/g, "");
 
-    it("paints them without relying on a context property", () => {
-      for (const path of new Set(icons)) {
-        // Comments stripped first: the file that explains why `context-fill`
-        // cannot be used here has to be allowed to name it.
-        const svg = readFileSync(resolve(repoRoot, path), "utf8").replace(
-          /<!--[\s\S]*?-->/g,
-          "",
-        );
-        expect(svg, path).not.toMatch(/context-(fill|stroke)/);
-        expect(svg, path).toMatch(/(fill|stroke)="#[0-9a-f]{3,8}"/i);
-      }
+    it("states its own colours rather than taking a context paint", () => {
+      expect(svg).not.toMatch(/context-(fill|stroke)/);
+      expect(svg).toMatch(/(fill|stroke):\s*#[0-9a-f]{3,8}/i);
     });
 
     /**
-     * Which is the only recolouring mechanism left once `context-fill` is out:
-     * one drawing per polarity, chosen by Thunderbird. Without the light one
-     * the icon is dark ink on a dark toolbar, which is the reported bug again
-     * in a theme.
+     * Which is the whole of the theme handling. An SVG used as an image is
+     * its own document, but Gecko propagates the embedding element's used
+     * colour scheme into it, so this query reports the toolbar's scheme.
+     * Without the rule the icon is dark ink on a dark toolbar, which is the
+     * reported bug.
      */
-    it("offers a light-ink variant for dark toolbars", () => {
-      for (const { light, dark, size } of manifest.compose_action.theme_icons) {
-        expect(light).not.toBe(dark);
-        expect(size).toBeGreaterThan(0);
-      }
-      // `default_icon` is what the default theme uses on a light background,
-      // so it has to be the dark-ink drawing rather than a third one.
-      expect(
-        manifest.compose_action.theme_icons.map(({ dark }) => dark),
-      ).toContain(manifest.compose_action.default_icon);
+    it("carries a dark-scheme rule instead of a second file", () => {
+      expect(svg).toMatch(/@media\s*\(prefers-color-scheme:\s*dark\)/);
+      expect(manifest.compose_action.theme_icons).toBeUndefined();
     });
   });
 
@@ -197,10 +188,6 @@ describe("manifest", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
-      ...manifest.compose_action.theme_icons.flatMap(({ light, dark }) => [
-        light,
-        dark,
-      ]),
       ...manifest.background.scripts,
       manifest.options_ui.page,
     ];
