@@ -9,7 +9,11 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["compose", "scripting"],
+  "permissions": ["compose", "menus", "scripting"],
+  "background": {
+    "scripts": ["src/background/background.js"],
+    "type": "module"
+  },
   "compose_action": {
     "default_title": "Insert code block",
     "default_area": "formattoolbar",

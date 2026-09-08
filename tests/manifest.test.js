@@ -37,7 +37,24 @@ describe("manifest", () => {
   });
 
   it("requests only the permissions the code actually uses", () => {
-    expect([...manifest.permissions].sort()).toEqual(["compose", "scripting"]);
+    // `menus` is mandatory to call `menus.*` at all, and there is no
+    // manifest-level menus key to declare items with: the compose_body item is
+    // created from the background script, so this permission is the only trace
+    // of it the manifest carries.
+    expect([...manifest.permissions].sort()).toEqual([
+      "compose",
+      "menus",
+      "scripting",
+    ]);
+  });
+
+  it("runs its background as an event page rather than a service worker", () => {
+    // `background.service_worker` is not implemented in Gecko, and Thunderbird
+    // inherits that: declaring one would leave the menu item with nothing
+    // listening for its clicks.
+    expect(manifest.background.service_worker).toBeUndefined();
+    expect(manifest.background.scripts.length).toBeGreaterThan(0);
+    expect(manifest.background.type).toBe("module");
   });
 
   /**
@@ -109,6 +126,7 @@ describe("manifest", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
+      ...manifest.background.scripts,
     ];
     for (const path of referenced) {
       expect(existsSync(resolve(repoRoot, path)), path).toBe(true);

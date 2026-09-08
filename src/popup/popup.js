@@ -84,10 +84,40 @@ function refreshSizeWarning() {
 }
 
 sourceField.addEventListener("input", refreshSizeWarning);
-// Once at load as well: `input` does not fire for a textarea that arrives
-// already filled, which is how the popup opens from a right-click on a
-// selection.
+// Once at load as well, so the warning line starts in a state this function
+// owns rather than one the markup guessed at. The right-click prefill lands
+// later and calls it again for itself: assigning `value` from script does not
+// fire `input`.
 refreshSizeWarning();
+
+/**
+ * Right-click path: the menu handler parks the selected text against the
+ * compose tab and opens this popup, which claims it here. The background drops
+ * the text as it hands it over, so a toolbar or shortcut open — which parks
+ * nothing — gets an empty string and the popup opens empty.
+ *
+ * The prefill is the convenient path, not the reliable one. `selectionText` is
+ * plain text extracted from HTML, so whatever indentation it arrives with is
+ * whatever survived that extraction. Pasting over it is still the path that
+ * gives the block its indentation back.
+ */
+async function claimSelectionPrefill() {
+  const tab = await findComposeTab();
+  const selectionText = await browser.runtime.sendMessage({
+    type: "thundercode:take-pending-selection",
+    tabId: tab.id,
+  });
+  if (typeof selectionText !== "string" || selectionText === "") {
+    return;
+  }
+  sourceField.value = selectionText;
+  refreshSizeWarning();
+}
+
+// Deliberately silent on failure. A prefill that does not arrive leaves an
+// empty textarea, which is exactly what the toolbar button opens anyway; an
+// error line here would report a broken convenience as a broken popup.
+claimSelectionPrefill().catch(() => {});
 
 /**
  * The one path from "confirm" to a closed popup, shared by the button and the
