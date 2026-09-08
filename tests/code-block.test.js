@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { buildCodeBlockHtml } from "../src/code-block/build-code-block-html.js";
+// The one import here that is not the seam, and only ever read from: the
+// bundle's own language list is what "detection can only return a language
+// present in the bundle" is a claim about, and it is also what the popup fills
+// its dropdown from. Asserting against it keeps that one list one list.
+import hljs from "../vendor/highlight.js/common.js";
 
 /**
  * Read the block back without pinning its markup shape. Asserting on the
@@ -11,9 +16,20 @@ const preStyle = (html) => html.match(/^<pre\b[^>]*\bstyle="([^"]*)"/)?.[1];
 const preContent = (html) =>
   html.replace(/^<pre\b[^>]*>/, "").replace(/<\/pre>$/, "");
 
-/** The block's text, which for unhighlighted source is the whole content. */
+/**
+ * The block's text, read straight off the markup with no spans to see through.
+ *
+ * `plaintext` is named rather than left out, and that is the point of the
+ * helper: since ticket 04, *not* naming a language asks for auto-detection, so
+ * a test about tab stops or common indent would otherwise be reading whatever
+ * spans the highlighter's guess happened to wrap the text in. These assertions
+ * are about the text and nothing else, so they pin the one rendering that has
+ * no colour in it. Callers can still override it.
+ */
 const blockText = (source, options) =>
-  preContent(buildCodeBlockHtml({ source, ...options }).html);
+  preContent(
+    buildCodeBlockHtml({ source, language: "plaintext", ...options }).html,
+  );
 
 /**
  * What a recipient sees: the block's content with the token spans taken back
@@ -68,7 +84,10 @@ const styleOf = (html, token) =>
 
 describe("buildCodeBlockHtml", () => {
   it("wraps the source in a single pre element", () => {
-    const { html } = buildCodeBlockHtml({ source: "hello" });
+    const { html } = buildCodeBlockHtml({
+      source: "hello",
+      language: "plaintext",
+    });
 
     expect(preContent(html)).toBe("hello");
     expect(html.match(/<pre\b/g)).toHaveLength(1);
@@ -77,6 +96,11 @@ describe("buildCodeBlockHtml", () => {
   it("escapes HTML metacharacters, so source cannot inject elements", () => {
     const { html } = buildCodeBlockHtml({
       source: '<img src=x onerror="alert(1)"> a && b',
+      // The unhighlighted path, which is the one with its own escaping. The
+      // highlighter escapes its own output and has its own test below; asking
+      // for detection here would silently swap which of the two is under test,
+      // and this source detects as XML.
+      language: "plaintext",
     });
 
     expect(html).not.toContain("<img");
@@ -231,7 +255,10 @@ describe("buildCodeBlockHtml", () => {
     it("carries the source's real characters, with no escaping", () => {
       const source = "if (a < b && c > d) return '<x>';";
 
-      const { html, text } = buildCodeBlockHtml({ source });
+      const { html, text } = buildCodeBlockHtml({
+        source,
+        language: "plaintext",
+      });
 
       expect(text).toBe(source);
       expect(preContent(html)).toBe(
@@ -500,6 +527,13 @@ describe("buildCodeBlockHtml", () => {
 
   describe("the language it used", () => {
     /**
+     * Detected as bash by a wide margin, and not remotely json — which is what
+     * makes it usable both as the detection fixture and as the source fed to
+     * the wrong grammar on purpose.
+     */
+    const shellScript = "#!/bin/sh\nfor f in *; do echo $f; done";
+
+    /**
      * The report is of what was applied, never of what was asked for. Ticket
      * 02 hardcoded `plaintext` here because nothing could be highlighted; the
      * rule it was protecting is the same one now, and ticket 06's preview
@@ -514,16 +548,76 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * Auto-detection is ticket 04's. Until it exists, asking for it gets an
-     * unhighlighted block that says so, rather than a guess.
+     * Naming no language asks for detection, and the guess is applied as well
+     * as reported — the block is highlighted as the language the dropdown will
+     * be showing, which is the whole of "the common case needs no input".
+     *
+     * A shell script is the fixture because it scores far above everything
+     * else in the bundle, so this pins the behaviour rather than the
+     * highlighter's opinion on a marginal case.
      */
-    it("reports plaintext when no language is chosen", () => {
+    it("detects the language when none is chosen, and applies it", () => {
       const { html, detectedLanguage } = buildCodeBlockHtml({
-        source: "const a = 1;",
+        source: shellScript,
+        themeMap,
       });
+
+      expect(detectedLanguage).toBe("bash");
+      expect(html).toContain("<span");
+      expect(visibleText(html)).toBe(shellScript);
+    });
+
+    /**
+     * An override is an instruction, not a hint: the requested language is
+     * used even where detection would have said something else, and the report
+     * says so. The pair matters more than either half — the same source is
+     * detected as bash one line up and rendered as json here.
+     */
+    it("uses the requested language instead of detecting", () => {
+      const { detectedLanguage } = buildCodeBlockHtml({
+        source: shellScript,
+        language: "json",
+        themeMap,
+      });
+
+      expect(detectedLanguage).toBe("json");
+    });
+
+    /**
+     * `highlightAuto` reports no language at all when nothing scores, which an
+     * empty paste guarantees. The caller must get a block and a straight
+     * answer rather than `undefined` leaking out into the dropdown.
+     */
+    it("reports plaintext when detection finds nothing", () => {
+      const { html, detectedLanguage } = buildCodeBlockHtml({ source: "" });
 
       expect(detectedLanguage).toBe("plaintext");
       expect(html).not.toContain("<span");
+    });
+
+    /**
+     * The popup builds its dropdown from `hljs.listLanguages()` and then
+     * assigns `detectedLanguage` to it, so a detected name the bundle does not
+     * carry would be a dropdown that silently shows the wrong entry. The
+     * bundle is imported here for exactly that reason: this asserts the two
+     * lists are the same list, which is the guarantee, and a hand-written copy
+     * of the names would be a third list to keep in step.
+     */
+    it("only ever reports a language the bundle carries", () => {
+      const registered = hljs.listLanguages();
+
+      for (const source of [
+        shellScript,
+        "def f(name):\n    print(name)\n",
+        '{"a": 1, "b": [true, null]}',
+        "SELECT * FROM t WHERE a = 1;",
+        "not code at all, just a sentence",
+        "",
+      ]) {
+        expect(registered).toContain(
+          buildCodeBlockHtml({ source }).detectedLanguage,
+        );
+      }
     });
 
     /**
@@ -549,12 +643,12 @@ describe("buildCodeBlockHtml", () => {
      */
     it("survives source that is not the language it was told", () => {
       const { html } = buildCodeBlockHtml({
-        source: "#!/bin/sh\nfor f in *; do echo $f; done",
+        source: shellScript,
         language: "json",
         themeMap,
       });
 
-      expect(visibleText(html)).toBe("#!/bin/sh\nfor f in *; do echo $f; done");
+      expect(visibleText(html)).toBe(shellScript);
     });
 
     it("puts no language label in the block", () => {
@@ -576,7 +670,7 @@ describe("buildCodeBlockHtml", () => {
         "\n",
       );
 
-      const { html } = buildCodeBlockHtml({ source });
+      const { html } = buildCodeBlockHtml({ source, language: "plaintext" });
 
       expect(preContent(html)).toBe(source);
     });
@@ -590,7 +684,10 @@ describe("buildCodeBlockHtml", () => {
     });
 
     it("handles a single line with no trailing newline", () => {
-      const { html } = buildCodeBlockHtml({ source: "const a = 1;" });
+      const { html } = buildCodeBlockHtml({
+        source: "const a = 1;",
+        language: "plaintext",
+      });
 
       expect(preContent(html)).toBe("const a = 1;");
     });
@@ -614,7 +711,7 @@ describe("buildCodeBlockHtml", () => {
     it("never hard-wraps a single very long line", () => {
       const source = "x".repeat(5000);
 
-      const { html } = buildCodeBlockHtml({ source });
+      const { html } = buildCodeBlockHtml({ source, language: "plaintext" });
 
       expect(preContent(html)).toBe(source);
     });

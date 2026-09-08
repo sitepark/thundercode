@@ -53,16 +53,81 @@ function fillLanguageDropdown() {
   for (const { id, label } of options) {
     languageField.add(new Option(label, id));
   }
-
-  // Plain text, deliberately, and not the last language used. Nothing detects
-  // yet, so any other default would be a guess presented as an answer — and
-  // the spec is explicit that the dropdown must never remember a previous
-  // choice, because that is how auto-detection stops working without anyone
-  // noticing. Ticket 04 replaces this default with the detected language.
-  languageField.value = "plaintext";
 }
 
 fillLanguageDropdown();
+
+/**
+ * Whether the user has taken the language over.
+ *
+ * Once they have, detection stops for the rest of this popup: an override is
+ * an instruction, and a dropdown that re-guesses over the top of a deliberate
+ * choice is worse than one that never guessed. It is a plain module variable
+ * on purpose — the popup document is built fresh every time the button is
+ * clicked, so this resets itself, and there is deliberately nothing anywhere
+ * that writes the chosen language to `storage`. Remembering it across opens is
+ * exactly how auto-detection stops working without anyone noticing.
+ */
+let languageOverridden = false;
+
+languageField.addEventListener("change", () => {
+  languageOverridden = true;
+});
+
+/**
+ * Points the dropdown at the language the seam would actually apply to what is
+ * in the textarea right now.
+ *
+ * The popup asks for detection the way any caller does — by naming no
+ * language — and reads back `detectedLanguage`, which is the language that was
+ * applied and not the one that was requested. So what the dropdown shows and
+ * what an insert would produce cannot drift apart: they are the same call.
+ * Detection itself lives behind the seam, and this file neither knows nor can
+ * tell that `hljs.highlightAuto` is involved.
+ *
+ * Assigning `value` is safe for any result: detection can only return a name
+ * `hljs.listLanguages()` carries, and that is the same list the dropdown was
+ * filled from a few lines up.
+ */
+function refreshDetectedLanguage() {
+  if (languageOverridden) return;
+
+  const { detectedLanguage } = buildCodeBlockHtml({
+    source: sourceField.value,
+  });
+
+  languageField.value = detectedLanguage;
+}
+
+/**
+ * Whether this edit replaced the content wholesale — a paste, a drop, a
+ * middle-click yank — rather than moving it along by a character.
+ *
+ * Detection is not cheap: it scores the source against all 36 grammars, which
+ * is around 100ms for a 500-line paste and half a second for the 3000-line one
+ * ticket 11's warning exists for. Running that on every keystroke would make
+ * the textarea stutter on exactly the pastes this feature is for, so the
+ * trigger is the arrival of new content and not every edit of it. That is also
+ * the honest reading of the story: the language is detected when code is
+ * pasted, and a snippet being tweaked afterwards has already got one.
+ *
+ * An event with no `inputType` at all counts as wholesale. A browser that will
+ * not say what happened should cost a redundant detection, not a dropdown that
+ * silently never updates again.
+ */
+function isWholesaleChange(event) {
+  return !event.inputType || event.inputType.startsWith("insertFrom");
+}
+
+sourceField.addEventListener("input", (event) => {
+  if (isWholesaleChange(event)) refreshDetectedLanguage();
+});
+
+// Once at load, so the dropdown's starting value is derived from the (empty)
+// textarea like every other value it takes, rather than hardcoded here as
+// ticket 03 had it. It comes out at Plain text, which is what an empty
+// document should say.
+refreshDetectedLanguage();
 
 /**
  * The compose window this popup was opened from.
@@ -185,6 +250,9 @@ async function claimSelectionPrefill() {
   }
   sourceField.value = selectionText;
   refreshSizeWarning();
+  // Content that arrived from outside is as wholesale as a paste, and
+  // assigning `value` from script fires no `input` event to notice it.
+  refreshDetectedLanguage();
 }
 
 // Deliberately silent on failure. A prefill that does not arrive leaves an
