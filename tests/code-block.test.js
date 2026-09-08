@@ -507,6 +507,18 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
+     * Stated separately from the border because a client may take one and not
+     * the other: Outlook's Word renderer draws the border and ignores the
+     * radius, which leaves the square-cornered block and is why this is a
+     * rounding of the chrome rather than a replacement for it.
+     */
+    it("rounds the block's corners", () => {
+      const style = preStyle(buildCodeBlockHtml({ source: "x" }).html);
+
+      expect(style).toMatch(/border-radius:\s*\S+/);
+    });
+
+    /**
      * The block's own text colour was the last one still written out inside
      * the seam. It arrives as data like every token colour now, which is what
      * makes swapping the theme stylesheet a one-file change rather than a
@@ -549,6 +561,32 @@ describe("buildCodeBlockHtml", () => {
 
       expect(preContent(html)).not.toContain(themeMap[CONTAINER_CLASS]);
       expect(html.match(/background-color/g)).toHaveLength(1);
+    });
+  });
+
+  /**
+   * The block is inserted into a spell-checked contenteditable, and code is
+   * not prose.
+   */
+  describe("how an editor should treat it", () => {
+    it("opts the block out of spell checking", () => {
+      const { html } = buildCodeBlockHtml({ source: "const usr = getEnv();" });
+
+      expect(html).toMatch(/^<pre\b[^>]*\bspellcheck="false"/);
+    });
+
+    /**
+     * Nothing else may join it. The attribute is the one exception to a
+     * `<pre>` that carries styling and nothing besides, so the exception is
+     * pinned rather than left to be widened by the next thing that seems
+     * harmless.
+     */
+    it("adds nothing else to the start tag", () => {
+      const [, attributes] = buildCodeBlockHtml({ source: "x" }).html.match(
+        /^<pre\b([^>]*)>/,
+      );
+
+      expect(attributes.match(/\b[\w-]+=/g)).toEqual(["spellcheck=", "style="]);
     });
   });
 

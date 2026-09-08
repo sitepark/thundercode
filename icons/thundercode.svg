@@ -1,4 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="context-fill, currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2b2a33" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!--
+    Painted with a literal colour rather than `context-fill`. Thunderbird
+    never sets `-moz-context-properties` on an add-on's action button — its
+    `chrome://messenger/content/messenger/webextensions.css` applies the icon
+    as a `list-style-image` and nothing more — so a context paint resolves to
+    nothing and the button comes up blank. The theme variant lives in
+    `thundercode-light.svg` and is selected by `theme_icons` in the manifest,
+    which is the mechanism that stylesheet does implement.
+
+    `width`/`height` alongside the `viewBox` so the file has an intrinsic size
+    to be scaled from wherever it is used at its natural size.
+  -->
   <path d="M6 5.5 3.5 8 6 10.5" />
   <path d="M10 5.5 12.5 8 10 10.5" />
 </svg>

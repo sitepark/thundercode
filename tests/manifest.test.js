@@ -141,10 +141,66 @@ describe("manifest", () => {
     expect(manifest.options_ui.open_in_tab).toBe(false);
   });
 
+  /**
+   * The button shipped blank once, and this is the reason it did.
+   *
+   * An add-on's action icon is applied by Thunderbird as a `list-style-image`
+   * — see `chrome://messenger/content/messenger/webextensions.css`, which is
+   * the whole of the integration — and nothing along that path sets
+   * `-moz-context-properties`. So `context-fill` and `context-stroke`, the
+   * idiom Thunderbird's *own* chrome icons are drawn with, resolve to no paint
+   * at all here and the button comes up empty. An add-on icon has to state its
+   * colours.
+   */
+  describe("toolbar icons", () => {
+    const icons = [
+      manifest.compose_action.default_icon,
+      ...manifest.compose_action.theme_icons.flatMap(({ light, dark }) => [
+        light,
+        dark,
+      ]),
+    ];
+
+    it("paints them without relying on a context property", () => {
+      for (const path of new Set(icons)) {
+        // Comments stripped first: the file that explains why `context-fill`
+        // cannot be used here has to be allowed to name it.
+        const svg = readFileSync(resolve(repoRoot, path), "utf8").replace(
+          /<!--[\s\S]*?-->/g,
+          "",
+        );
+        expect(svg, path).not.toMatch(/context-(fill|stroke)/);
+        expect(svg, path).toMatch(/(fill|stroke)="#[0-9a-f]{3,8}"/i);
+      }
+    });
+
+    /**
+     * Which is the only recolouring mechanism left once `context-fill` is out:
+     * one drawing per polarity, chosen by Thunderbird. Without the light one
+     * the icon is dark ink on a dark toolbar, which is the reported bug again
+     * in a theme.
+     */
+    it("offers a light-ink variant for dark toolbars", () => {
+      for (const { light, dark, size } of manifest.compose_action.theme_icons) {
+        expect(light).not.toBe(dark);
+        expect(size).toBeGreaterThan(0);
+      }
+      // `default_icon` is what the default theme uses on a light background,
+      // so it has to be the dark-ink drawing rather than a third one.
+      expect(
+        manifest.compose_action.theme_icons.map(({ dark }) => dark),
+      ).toContain(manifest.compose_action.default_icon);
+    });
+  });
+
   it("references only files that exist", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
+      ...manifest.compose_action.theme_icons.flatMap(({ light, dark }) => [
+        light,
+        dark,
+      ]),
       ...manifest.background.scripts,
       manifest.options_ui.page,
     ];

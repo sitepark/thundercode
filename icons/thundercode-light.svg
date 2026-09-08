@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fbfbfe" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!--
+    The light-ink counterpart of `thundercode.svg`, for a dark toolbar. Two
+    files rather than one recoloured by the theme because Thunderbird gives an
+    add-on no way to do the latter: see the comment there.
+
+    The two must stay the same drawing. The only difference is `stroke`.
+  -->
+  <path d="M6 5.5 3.5 8 6 10.5" />
+  <path d="M10 5.5 12.5 8 10 10.5" />
+</svg>

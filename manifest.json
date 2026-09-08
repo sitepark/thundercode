@@ -18,7 +18,19 @@
     "default_title": "Insert code block",
     "default_area": "formattoolbar",
     "default_popup": "src/popup/popup.html",
-    "default_icon": "icons/thundercode.svg"
+    "default_icon": "icons/thundercode.svg",
+    "theme_icons": [
+      {
+        "light": "icons/thundercode-light.svg",
+        "dark": "icons/thundercode.svg",
+        "size": 16
+      },
+      {
+        "light": "icons/thundercode-light.svg",
+        "dark": "icons/thundercode.svg",
+        "size": 32
+      }
+    ]
   },
   "commands": {
     "_execute_compose_action": {

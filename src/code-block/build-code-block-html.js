@@ -126,7 +126,17 @@ export function buildCodeBlockHtml({
 
   return {
     html:
-      `<pre style="${preStyle(fontSize, themeMap)}">` +
+      // `spellcheck="false"` because the block lands in a spell-checked
+      // contenteditable and code is not prose. Every identifier, keyword and
+      // path in it is a misspelling to a dictionary, so without this the
+      // block arrives under a wall of red that flags nothing worth reading
+      // and buries the one squiggle in the sentence above it that was worth
+      // reading. It is the only attribute besides `style` the block carries:
+      // it is not styling, so it cannot go in the style attribute, and it is
+      // inert everywhere except an editor — a recipient reading the message
+      // renders it identically, and a recipient quoting it in a reply is
+      // exactly who else wants it.
+      `<pre spellcheck="false" style="${preStyle(fontSize, themeMap)}">` +
       `${renderContent(text, appliedLanguage, themeMap)}</pre>`,
     // The normalised source itself, for the plain-text composer that has no
     // markup to take. It is returned rather than left internal because the
@@ -447,6 +457,14 @@ function preStyle(fontSize, themeMap) {
     // background", so these two are chosen here, together, and stay put when
     // the theme is swapped.
     "border: 1px solid #d0d7de",
+    // Rounded with the border, not instead of it. The radius is what makes
+    // the block read as a panel set into the message rather than as a
+    // paragraph someone drew a frame around, and it is the one part of the
+    // chrome a client is likely to drop: Outlook's Word renderer ignores
+    // `border-radius` outright. Dropping it leaves the same square-cornered
+    // block this had before, which is why it is stated here rather than
+    // approximated with anything a renderer would take more literally.
+    "border-radius: 6px",
     "background-color: #f6f8fa",
     // Last, so that a theme stating something this list already covers wins,
     // and so the whole of what the theme contributes reads as one run.

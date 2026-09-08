@@ -109,3 +109,7 @@ end-of-body fallback.
 - **The injected function is serialised by source** by
   `scripting.executeScript({ func })`, so it cannot close over anything in its
   module. That constraint is load-bearing and is documented at the function.
+
+### Superseded: the toolbar button's icon
+
+The icon this ticket shipped was blank in a running Thunderbird — `context-fill` is not painted in an add-on's action icon. Fixed under ticket 13, which also carries the hands-on check that the checkbox above ("A button appears in the compose window's format toolbar") was going to be ticked by.
