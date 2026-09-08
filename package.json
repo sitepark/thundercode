@@ -8,9 +8,12 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "bash scripts/package.sh"
+    "package": "bash scripts/package.sh",
+    "changelog": "node scripts/changelog.mjs",
+    "changelog:release": "node scripts/changelog.mjs --release"
   },
   "devDependencies": {
+    "git-cliff": "^2.13.1",
     "highlight.js": "11.12.0",
     "vitest": "^5.0.0"
   }

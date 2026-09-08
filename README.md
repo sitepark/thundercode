@@ -64,14 +64,43 @@ Run the tests with `pnpm test`. They cover the manifest, the update manifest,
 the version arithmetic and the HTML builder; everything that needs a running
 compose window is checked by hand against `docs/release-checklist.md`.
 
+## Commit messages
+
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+`type(scope): subject`. `CHANGELOG.md` is generated from these by git-cliff
+(`cliff.toml`), so the subject is not a note to the next reader of `git log` —
+it is the sentence a user reads about the release.
+
+Two types reach the changelog:
+
+- `feat` — an **Added** entry.
+- `fix` — a **Fixed** entry.
+
+`refactor` and `perf` become **Changed**, `revert` becomes **Removed**, and
+`docs`, `test`, `chore`, `ci`, `build` and `style` are required on the commit
+but deliberately absent from the file: someone reading it wants to know what
+the add-on now does, not how the repo is maintained.
+
+Scopes in use: `compose`, `code-block`, `popup`, `options`, `ui`, `release`.
+
+A commit with no type is dropped from the changelog entirely rather than
+guessed at. That is meant to be caught in review — silently listing it under
+the wrong heading would be worse. Merge commits are skipped for the same
+reason and keep their default subjects.
+
+Run `pnpm changelog` at any point to see what the next release will say.
+
 ## Releasing
 
 The version in `manifest.json` is what gets released; the workflow never
 chooses it. Releasing is running an action, not pushing a tag.
 
-1. Write the section for this version in `CHANGELOG.md`: rename
-   `## [Unreleased]` to `## [<version>] - <date>`, add a fresh
-   `## [Unreleased]` above it, and update the compare links at the bottom.
+1. `pnpm changelog:release`. This stamps the unreleased commits with the
+   version in `manifest.json` and today's date, and rebuilds the compare links
+   at the bottom. Read what came out: git-cliff writes the entries from commit
+   subjects, so a vague subject is a vague changelog line, and the fix is to
+   amend the commit rather than to edit `CHANGELOG.md` — the next regeneration
+   discards anything typed in by hand.
 2. Commit that to `main`, and run `docs/release-checklist.md` — the action
    publishes immediately, so this is the last point at which nothing has
    shipped.

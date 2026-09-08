@@ -14,6 +14,14 @@ The five canonical roles, used verbatim as GitHub label names. See
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+## Commit messages
+
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), because
+`CHANGELOG.md` is generated from them by git-cliff. `feat` and `fix` are the
+two types that reach the changelog, so their subjects are user-facing prose,
+not notes to the next reader of `git log`. See the Commit messages section of
+`README.md` for the type and scope list.
+
 ## Releasing
 
 `manifest.json` holds the version; everything else follows it. See the

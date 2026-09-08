@@ -5,26 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-## [1.0.0] - 2026-09-09
-
-First public release.
+## [1.0.0] - 2026-09-08
 
 ### Added
 
-- Insert a syntax-highlighted code block at the caret in an HTML compose window.
-- Syntax highlighting for 36 languages via a vendored highlight.js 11.12.0.
-- Automatic language detection, overridable in the popup.
-- Live preview of the block in the popup before inserting.
-- Right-click a selection in the compose window to turn it into a code block.
-- Whitespace normalisation of pasted source.
-- A warning before inserting a large snippet.
-- An options page for the theme and related preferences.
-- Light and dark rendering that follows Thunderbird's appearance.
-- `Ctrl+Shift+C` as the default shortcut.
+- **compose:** Insert a hardcoded block at the caret
+- **code-block:** Build a block from pasted source
+- **popup:** Warn before inserting a large snippet
+- **code-block:** Normalise whitespace in pasted source
+- **compose:** Add a Ctrl+Shift+C keyboard shortcut
+- **compose:** Degrade gracefully in plain-text composers
+- **compose:** Convert a selection from the context menu
+- **options:** Add an options page for tab width and font size
+- **code-block:** Highlight the block with a vendored highlight.js
+- **popup:** Render a live preview of the block
+- **code-block:** Auto-detect the language
 
-Requires Thunderbird 128 or newer.
+### Fixed
 
-[unreleased]: https://github.com/sitepark/thundercode/compare/1.0.0...HEAD
+- Address code-review findings
+- **code-block:** Keep the block's own fill out of the theme map
+- **ui:** Blank toolbar icon, spell checking and square corners
+- **ui:** Let the toolbar icon colour itself
+- **ui:** Follow Thunderbird's light or dark appearance
+
 [1.0.0]: https://github.com/sitepark/thundercode/releases/tag/1.0.0

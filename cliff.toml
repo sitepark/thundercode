@@ -1,0 +1,78 @@
+# git-cliff configuration for ThunderCode.
+#
+# The changelog is generated from Conventional Commit subjects, so what lands
+# in it is decided when a commit is written, not at release time. A commit that
+# names no type is dropped rather than guessed at — see `filter_commits` below.
+#
+# Output is Keep a Changelog: the group names are its section headings, and the
+# footer rebuilds every compare link from the tags git actually has, which is
+# the bookkeeping that used to be done by hand and silently went stale.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+
+body = """{% if version %}## [{{ version }}] - {{ timestamp | date(format="%Y-%m-%d") }}{% else %}## [Unreleased]{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+
+{% for commit in commits %}- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}
+{% endfor %}{% endfor %}
+"""
+
+footer = """{% for release in releases -%}
+{% if release.version -%}
+{% if release.previous and release.previous.version -%}
+[{{ release.version }}]: https://github.com/sitepark/thundercode/compare/{{ release.previous.version }}...{{ release.version }}
+{% else -%}
+[{{ release.version }}]: https://github.com/sitepark/thundercode/releases/tag/{{ release.version }}
+{% endif -%}
+{% else -%}
+[unreleased]: https://github.com/sitepark/thundercode/compare/{{ release.previous.version }}...HEAD
+{% endif -%}
+{% endfor %}"""
+
+trim = false
+
+[git]
+conventional_commits = true
+
+# Anything that is not a Conventional Commit is dropped rather than guessed at.
+# Merge commits are the bulk of what this removes; a subject with no type is
+# the other case, and it is meant to be noticed in review, not silently listed.
+filter_unconventional = true
+filter_commits = true
+
+protect_breaking_commits = true
+split_commits = false
+topo_order = false
+sort_commits = "oldest"
+
+# Bare versions, no `v` prefix: the tag is the value of `manifest.json`'s
+# `version` field and nothing else, because the release workflow compares the
+# two literally.
+tag_pattern = "[0-9]*"
+
+commit_parsers = [
+  { message = "^Merge", skip = true },
+  { message = "^feat", group = "<!-- 0 -->Added" },
+  { message = "^fix", group = "<!-- 1 -->Fixed" },
+  { message = "^refactor", group = "<!-- 2 -->Changed" },
+  { message = "^perf", group = "<!-- 2 -->Changed" },
+  { message = "^revert", group = "<!-- 3 -->Removed" },
+  # Internal-only types. They are required on the commit and absent from the
+  # changelog: a reader of this file is looking for what the add-on now does,
+  # not for how the repo is maintained.
+  { message = "^docs", skip = true },
+  { message = "^test", skip = true },
+  { message = "^chore", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^build", skip = true },
+  { message = "^style", skip = true },
+]
