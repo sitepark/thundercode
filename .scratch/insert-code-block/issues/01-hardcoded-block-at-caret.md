@@ -128,4 +128,8 @@ That one line answers both, because of where in `insertIntoBody` it can be print
 
 **Finding 2 — positive. `execCommand("insertHTML")` is reachable from the compose-script sandbox**, and returned true. The block therefore goes in through `HTMLEditor::InsertHTMLAsAction` rather than through the Selection/Range fallback. Both paths stay, since the fallback is what catches a composer with no caret at all, but the preferred one is the one that runs.
 
-**Finding 3 is still open**, and is now the only one. `execCommand` routing to a real editor action is the reason to *expect* the insert to be undoable and the message to be marked modified, but neither has been observed. Two keystrokes settle it: press Ctrl+Z after inserting, then close the window and see whether it warns about unsaved changes.
+**Finding 3 — half settled, positively.** Closing the compose window after an insert warns about unsaved changes, so Thunderbird does consider the message modified by it: the block is a real edit and cannot be lost by closing a window that looks untouched. Whether Ctrl+Z removes it is not yet observed.
+
+The original note on finding 3 follows.
+
+**Finding 3 was open, and is now the only one still partly so.** `execCommand` routing to a real editor action is the reason to *expect* the insert to be undoable and the message to be marked modified, but neither has been observed. Two keystrokes settle it: press Ctrl+Z after inserting, then close the window and see whether it warns about unsaved changes.
