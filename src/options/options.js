@@ -47,16 +47,43 @@ async function save() {
   try {
     // Field values are strings, and an empty field is `""`; the settings module
     // is where that becomes a number, so nothing is parsed here.
-    show(
-      await writeSettings({
-        tabWidth: fields.tabWidth.value,
-        fontSize: fields.fontSize.value,
-      }),
+    const stored = await writeSettings({
+      tabWidth: fields.tabWidth.value,
+      fontSize: fields.fontSize.value,
+    });
+    // Said out loud, and not only shown. `show` puts the corrected number in
+    // the field either way, but a field quietly changing under a "Saved."
+    // reads as a save that worked; a value that was out of range or empty was
+    // not saved as typed, and the one sentence is what stops the correction
+    // being something the user finds out about in an email.
+    const corrected = wasCorrected(stored);
+    show(stored);
+    setStatus(
+      corrected
+        ? "Saved, adjusted to what the block can use. The fields show the " +
+            "values that will apply."
+        : "Saved. Applies to the next code block you insert.",
     );
-    setStatus("Saved. Applies to the next code block you insert.");
   } catch (error) {
     setStatus(`Could not save: ${String(error?.message ?? error)}`, true);
   }
+}
+
+/**
+ * Whether what came back differs from what was typed — which is the question,
+ * rather than whether it differs from what is in the field, because `show` is
+ * about to overwrite that.
+ *
+ * Compared as numbers so that `08` and `8` are the same answer: a leading zero
+ * is the field's own formatting and not a correction anyone needs telling
+ * about. An emptied field comes out as `0` and an unparseable one as `NaN`,
+ * and neither can equal a setting, so both are reported as the corrections
+ * they are.
+ */
+function wasCorrected(stored) {
+  return Object.entries(fields).some(
+    ([name, input]) => Number(input.value) !== stored[name],
+  );
 }
 
 function setStatus(text, failed = false) {

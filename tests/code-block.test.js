@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCodeBlockHtml } from "../src/code-block/build-code-block-html.js";
+import {
+  CONTAINER_CLASS,
+  buildCodeBlockHtml,
+} from "../src/code-block/build-code-block-html.js";
 // The one import here that is not the seam, and only ever read from: the
 // bundle's own language list is what "detection can only return a language
 // present in the bundle" is a claim about, and it is also what the popup fills
@@ -59,6 +62,11 @@ const visibleText = (html) =>
  * leaves six token classes empty on purpose.
  */
 const themeMap = {
+  // The container rather than a token: the block's own text and background
+  // colour, keyed by the class highlight.js puts on the element that wraps the
+  // code. Nothing like the shipped theme's pair, so a test reading them back
+  // cannot pass against a colour written into the seam by hand.
+  [CONTAINER_CLASS]: "color: #112233; background-color: #eeddcc",
   "hljs-keyword": "color: #aa0000",
   "hljs-string": "color: #00aa00; font-style: italic",
   "hljs-comment": "color: #777777; font-style: italic",
@@ -494,6 +502,48 @@ describe("buildCodeBlockHtml", () => {
       expect(style).toMatch(/background(-color)?:\s*\S+/);
       expect(style).toMatch(/padding:\s*\S+/);
       expect(style).toMatch(/margin:\s*\S+/);
+    });
+
+    /**
+     * The block's own two colours were the last ones still written out inside
+     * the seam. They arrive as data like every token colour now, which is what
+     * makes swapping the theme stylesheet a one-file change rather than a
+     * one-file change plus two hex codes nobody remembers are there.
+     */
+    it("takes its own text and background colour from the theme", () => {
+      const style = preStyle(
+        buildCodeBlockHtml({ source: "x", themeMap }).html,
+      );
+
+      expect(style).toContain(themeMap[CONTAINER_CLASS]);
+    });
+
+    /**
+     * A caller with no theme — or a popup whose stylesheet failed to load —
+     * still gets a block that reads as one, in the seam's own colours.
+     */
+    it("still states both colours when no theme is injected", () => {
+      const style = preStyle(buildCodeBlockHtml({ source: "x" }).html);
+
+      expect(style).toMatch(/(^|;\s*)color:\s*\S+/);
+      expect(style).toMatch(/background(-color)?:\s*\S+/);
+      expect(style).not.toContain(themeMap[CONTAINER_CLASS]);
+    });
+
+    /**
+     * The container entry shares the map with the token entries, so the one
+     * thing worth pinning is that it cannot leak onto a token: a background
+     * per span would paint a stripe behind every keyword.
+     */
+    it("never puts the container's colours on a token", () => {
+      const { html } = buildCodeBlockHtml({
+        source: "const a = 1;",
+        language: "javascript",
+        themeMap,
+      });
+
+      expect(preContent(html)).not.toContain(themeMap[CONTAINER_CLASS]);
+      expect(html.match(/background-color/g)).toHaveLength(1);
     });
   });
 

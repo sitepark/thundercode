@@ -21,6 +21,36 @@ export const CODE_BLOCK_DEFAULTS = Object.freeze({
 });
 
 /**
+ * The key the block's own colours are looked up under in the `themeMap`.
+ *
+ * `hljs` is the class highlight.js puts on the element *containing* the code,
+ * and it is where a theme states the block's text and background colour — the
+ * two colours that are not a property of any one token. Nothing emitted here
+ * carries the class, since the markup contract forbids class attributes
+ * outright; the class name is only the key the theme files themselves use, so
+ * the map stays one flat table of "what the theme says about this class"
+ * instead of growing a second shape for the container.
+ *
+ * Exported because the module that reduces a stylesheet to a `themeMap` has to
+ * write the same key, and a string that two modules must agree on is a string
+ * that belongs to one of them.
+ */
+export const CONTAINER_CLASS = "hljs";
+
+/**
+ * The block's colours when no theme data reaches the seam at all — a caller
+ * that passes no `themeMap`, or a popup whose stylesheet failed to load.
+ *
+ * These are the seam's own unthemed rendering and not a transcription of the
+ * shipped theme: the shipped block takes both colours from the stylesheet via
+ * `CONTAINER_CLASS`, so swapping the theme stays a one-file change and nothing
+ * here has to be kept in step with it. What they have to be is legible and
+ * obviously a code block, since a block that reaches a recipient with no
+ * colour at all still has to read as one.
+ */
+const UNTHEMED_CONTAINER = "color: #24292e; background-color: #f6f8fa";
+
+/**
  * The absence of highlighting rather than a way of highlighting. It is a real
  * registered language — running it produces escaped text and not one span — so
  * the seam short-circuits it instead, which keeps the escaping of a block with
@@ -43,8 +73,9 @@ const PLAINTEXT = "plaintext";
  * string, and the vendored bundle imports as ordinary ESM under both the popup
  * and the test runner.
  *
- * The signature is the one the spec settles on and has not changed since
- * ticket 02.
+ * The signature is the one the spec settles on. Its parameters have not
+ * changed since ticket 02; the return value widened once, when ticket 09 added
+ * `text` beside `html` for plain-text composers.
  *
  * @param {object} options
  * @param {string} options.source Raw source text, as pasted.
@@ -52,11 +83,13 @@ const PLAINTEXT = "plaintext";
  *   for auto-detection, and the language detection settled on comes back as
  *   `detectedLanguage`. Naming a language skips detection entirely: an
  *   override is an instruction, not a hint.
- * @param {Record<string, string>} [options.themeMap] Token class list to
- *   inline declaration string, keyed exactly as the class attribute is emitted
- *   (`"hljs-keyword"`, `"hljs-variable language_"`). Injected as data so the
- *   seam never reads a stylesheet itself. Omitting it renders every token
- *   unstyled rather than failing.
+ * @param {Record<string, string>} [options.themeMap] Highlight.js class list
+ *   to inline declaration string, keyed exactly as the class attribute is
+ *   emitted (`"hljs-keyword"`, `"hljs-variable language_"`), plus the
+ *   `CONTAINER_CLASS` entry carrying the block's own text and background
+ *   colour. Injected as data so the seam never reads a stylesheet itself.
+ *   Omitting it renders every token unstyled and the block in its unthemed
+ *   colours rather than failing.
  * @param {number} [options.tabWidth] Spaces a tab expands to. Falls back to
  *   `CODE_BLOCK_DEFAULTS.tabWidth`, as does anything that is not a positive
  *   whole number.
@@ -93,7 +126,7 @@ export function buildCodeBlockHtml({
 
   return {
     html:
-      `<pre style="${preStyle(fontSize)}">` +
+      `<pre style="${preStyle(fontSize, themeMap)}">` +
       `${renderContent(text, appliedLanguage, themeMap)}</pre>`,
     // The normalised source itself, for the plain-text composer that has no
     // markup to take. It is returned rather than left internal because the
@@ -332,6 +365,15 @@ function stripTrailingWhitespace(line) {
  * Drops blank lines from the top and the bottom only. Blank lines inside the
  * snippet are the author's paragraphing and stay.
  *
+ * This is also what makes a compensation ticket 02 needed unnecessary, and the
+ * reason is worth keeping: an HTML parser discards a newline immediately after
+ * a `<pre>` start tag, so a snippet beginning with a blank line used to lose
+ * it on the way into the message, and the builder wrote a second newline to
+ * put it back. Nothing does that any more because nothing can: the leading
+ * trim here guarantees the content never starts with a newline, so there is
+ * never one for the parser to eat. Loosen this trim and that compensation has
+ * to come back with it.
+ *
  * Source that is entirely blank leaves no lines at all, and so joins back to
  * the empty string.
  */
@@ -374,8 +416,16 @@ function stripCommonIndent(lines) {
  * into a reply quote and discards the `<head>` — a stylesheet would lose the
  * block the first time anyone replies. The font size is set here and
  * inherited, never repeated per token.
+ *
+ * The two colours come from the theme rather than from this file, for the same
+ * reason every token colour does: a hardcoded background is what makes a theme
+ * swap stop being a one-file change, and it is the one that shows up as
+ * unreadable text rather than as a wrong shade the day someone swaps in a
+ * theme with a different container colour. The border is not among them — no
+ * hljs theme states one, so it is this block's own decision and not a colour
+ * transcribed from anywhere.
  */
-function preStyle(fontSize) {
+function preStyle(fontSize, themeMap) {
   return [
     // Single-quoted font names: the declaration ends up inside a
     // double-quoted `style` attribute, and a nested double quote would
@@ -390,8 +440,9 @@ function preStyle(fontSize) {
     "margin: 12px 0",
     "padding: 12px",
     "border: 1px solid #d0d7de",
-    "background: #f6f8fa",
-    "color: #24292e",
+    // Last, so that a theme stating something this list already covers wins,
+    // and so the whole of what the theme contributes reads as one run.
+    themeMap?.[CONTAINER_CLASS] ?? UNTHEMED_CONTAINER,
   ].join("; ");
 }
 

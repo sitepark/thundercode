@@ -309,3 +309,35 @@ renders and that picking from it works. Same hands-on pass.
 - **`hljs-class` and `hljs-function` render unstyled** in php and go, as
   described above. Upstream's own theme has no rule for these legacy scope
   names.
+
+### Review fixes: the block's own colours are theme data now
+
+`preStyle` still hardcoded `color: #24292e` and `background: #f6f8fa`, which
+contradicted the spec's *"colours are never transcribed by hand"* and meant
+swapping the theme had stopped being the one-file change the spec promises.
+
+The theme's `.hljs` base rule — the one `TOKEN_SELECTOR` deliberately excluded
+as "the container rather than any token" — is now read by `theme-map.js` under
+a whitelist of its own (`color` and `background-color`, through the longhand
+accessors for the same reason the token list gives) and filed in the map under
+`CONTAINER_CLASS`. That key is exported from the seam rather than written out
+in both modules, since it is a string the two have to agree on. `preStyle`
+looks it up and falls back to its own unthemed pair when no theme reaches it,
+so the seam still produces a correct block for a caller that passes no map —
+which the tests rely on, and which is also what a failed stylesheet load gets.
+
+**One visible consequence, worth flagging.** The review assumed both colours had
+been copied from `.hljs`. Only the text colour was: the vendored GitHub theme's
+rule is `color: #24292e; background: #ffffff`, so honouring the stylesheet
+changes the inserted block's background from the hand-picked `#f6f8fa` to the
+theme's white. The block still reads as one — it keeps its `#d0d7de` border and
+its padding, and no hljs theme states a border, so that colour stays the seam's
+own decision rather than a transcription of anything. Taking the theme's word
+for it is the point: a hardcoded light-grey background is exactly what would
+turn a future theme swap into an unreadable block instead of a differently
+coloured one.
+
+Covered in the existing fixture-map style, with an `hljs` entry in the fixture
+that looks nothing like the shipped theme's: the container entry is used when it
+is there, both colours are still stated when it is not, and it never leaks onto
+a token span.

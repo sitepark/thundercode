@@ -1,10 +1,14 @@
+import { CONTAINER_CLASS } from "../code-block/build-code-block-html.js";
+
 /**
  * Reduces the vendored theme stylesheet to the flat `themeMap` the seam takes.
  *
- * Colours are never transcribed by hand. The stylesheet stays the single
- * source of truth and swapping themes stays a one-file change, because the
- * thing that reads it is the browser's own CSS parser: this module only walks
- * the already-parsed CSSOM. No regex over the file, no colour table.
+ * Colours are never transcribed by hand — the block's own text and background
+ * included, which is why the theme's `.hljs` base rule is read here alongside
+ * every token rule. The stylesheet stays the single source of truth and
+ * swapping themes stays a one-file change, because the thing that reads it is
+ * the browser's own CSS parser: this module only walks the already-parsed
+ * CSSOM. No regex over the file, no colour table.
  *
  * This is popup-side code and is deliberately not unit tested. It needs a
  * browser to do anything at all, the test runner has no DOM by design, and its
@@ -14,9 +18,10 @@
  */
 
 /**
- * The whitelist, and the whole of it. A computed or fully-populated style
- * reports dozens of properties; copying them all would put a paragraph of CSS
- * on every token and multiply the message size for no visual gain.
+ * The whitelist for a token, and the whole of it. A computed or
+ * fully-populated style reports dozens of properties; copying them all would
+ * put a paragraph of CSS on every token and multiply the message size for no
+ * visual gain.
  *
  * Read through the named longhand accessors rather than by iterating the
  * declaration or matching on `cssText`. Gecko expands a shorthand such as
@@ -26,20 +31,48 @@
  * silently miss a whitelisted property hidden inside a shorthand. Today's
  * theme happens to use longhands throughout; the next one may not.
  */
-const INLINED_PROPERTIES = [
+const TOKEN_PROPERTIES = [
   ["color", "color"],
   ["font-weight", "fontWeight"],
   ["font-style", "fontStyle"],
 ];
 
 /**
+ * The whitelist for the block itself, which is a different list because the
+ * container is a different thing: a background on a token would paint a stripe
+ * behind one word, and a weight or style there would be the theme deciding
+ * that all code is bold.
+ *
+ * `backgroundColor` and not `background`, for the reason the token list gives:
+ * today's theme writes the shorthand (`background: #ffffff`), and only the
+ * longhand accessor sees through it. Emitting the longhand also travels
+ * better — a mail client that strips the `background` shorthand as a layout
+ * property still honours `background-color`.
+ */
+const CONTAINER_PROPERTIES = [
+  ["color", "color"],
+  ["background-color", "backgroundColor"],
+];
+
+/**
+ * The theme's base rule: the block's own text and background colour, which
+ * belong to no token and were the last two colours still written out by hand.
+ *
+ * Exactly `.hljs` and nothing more. The structural `pre code.hljs` and
+ * `code.hljs` rules describe how a theme lays a block out on a web page —
+ * padding, `overflow-x` — and carry nothing whitelisted here; the block's own
+ * padding and border are this extension's decisions and are stated in the
+ * seam.
+ */
+const CONTAINER_SELECTOR = /^\.hljs$/;
+
+/**
  * Token selectors only, and single-element ones at that.
  *
  * Requiring `.hljs-` excludes the theme's `.hljs` base rule, which styles the
- * *container* rather than any token and would never be looked up — rejecting
- * it explicitly is self-documenting and stays correct if the `<pre>` ever
- * gains that class. It also excludes the structural `pre code.hljs` and
- * `code.hljs` rules, which carry nothing whitelisted anyway.
+ * *container* rather than any token and is matched by `CONTAINER_SELECTOR`
+ * above instead — under its own whitelist and its own key. It also excludes
+ * the structural `pre code.hljs` and `code.hljs` rules.
  *
  * Allowing no whitespace excludes the theme's two descendant rules,
  * `.hljs-meta .hljs-keyword` and `.hljs-meta .hljs-string`. Those describe a
@@ -105,24 +138,41 @@ function buildThemeMap(sheet) {
     // an `@media` block would need its contents walked too; none of hljs's do.
     if (typeof rule.selectorText !== "string") continue;
 
-    const declarations = readWhitelistedDeclarations(rule.style);
-    // Several of the theme's own token rules are empty on purpose
-    // (`.hljs-tag`, `.hljs-params`, `.hljs-punctuation`). Leaving them out of
-    // the map is what makes them render unstyled, which is what their author
-    // intended.
-    if (declarations === "") continue;
-
     // A comma group is one rule with several selectors. Each gets its own
     // entry, so `.hljs-variable` and `.hljs-variable.language_` can be grouped
     // together in the source and still be distinguishable — which in this
-    // theme they are not, and in the keyword group they are.
+    // theme they are not, and in the keyword group they are. The whitelist is
+    // picked per selector rather than per rule, because a theme is free to
+    // group `.hljs` with a token selector and the two take different
+    // properties.
     for (const selector of rule.selectorText.split(",")) {
-      const classList = toClassList(selector.trim());
-      if (classList) themeMap[classList] = declarations;
+      addEntry(themeMap, selector.trim(), rule.style);
     }
   }
 
   return themeMap;
+}
+
+/**
+ * Files one selector of one rule under the key the seam will look it up by, or
+ * drops it.
+ */
+function addEntry(themeMap, selector, style) {
+  const [classList, properties] = CONTAINER_SELECTOR.test(selector)
+    ? [CONTAINER_CLASS, CONTAINER_PROPERTIES]
+    : [toClassList(selector), TOKEN_PROPERTIES];
+
+  if (!classList) return;
+
+  const declarations = readWhitelistedDeclarations(style, properties);
+  // Several of the theme's own token rules are empty on purpose
+  // (`.hljs-tag`, `.hljs-params`, `.hljs-punctuation`). Leaving them out of
+  // the map is what makes them render unstyled, which is what their author
+  // intended. A `.hljs` rule stating neither colour drops out the same way,
+  // and the seam's own unthemed colours stand in.
+  if (declarations === "") return;
+
+  themeMap[classList] = declarations;
 }
 
 /**
@@ -154,8 +204,9 @@ function toClassList(selector) {
  * Joined in the same `a: b; c: d` shape the `<pre>`'s own style attribute
  * uses, so the seam can interpolate it without knowing where it came from.
  */
-function readWhitelistedDeclarations(style) {
-  return INLINED_PROPERTIES.filter(([, accessor]) => style[accessor] !== "")
+function readWhitelistedDeclarations(style, properties) {
+  return properties
+    .filter(([, accessor]) => style[accessor] !== "")
     .map(([property, accessor]) => `${property}: ${style[accessor]}`)
     .join("; ");
 }

@@ -12,9 +12,9 @@ textarea {
   margin: 0 0 1em;
   /*
     Monospaced so that pasted indentation is readable while it sits here. This
-    is a paste target, not a preview of the block — ticket 06 brings the
-    preview, and duplicating the block's exact type here would only give
-    ticket 10 two font sizes to keep in step.
+    is a paste target and not a preview of the block: `#preview` below is the
+    preview, and restating the block's exact type here would mean a second copy
+    of the configurable font size to keep in step with the settings.
   */
   font-family: monospace;
   white-space: pre-wrap;

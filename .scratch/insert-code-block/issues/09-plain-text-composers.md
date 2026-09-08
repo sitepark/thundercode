@@ -134,3 +134,10 @@ plain-text output differ from what the popup was given.
 - **No test of the insert path.** It touches the DOM and `browser.*`, which is
   exactly what the runner has no environment for, and the spec puts compose
   insertion in "what is not unit tested".
+
+### Review fixes
+
+The seam's JSDoc claimed its signature "has not changed since ticket 02", which
+stopped being true here: this ticket added `text` to the return value. It now
+says which half is unchanged — the parameters, exactly as the spec spells them
+out — and when the other half widened, and why.
