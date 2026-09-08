@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ThunderCode",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Insert syntax-highlighted code blocks into Thunderbird messages.",
   "browser_specific_settings": {
     "gecko": {
@@ -9,11 +9,27 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["compose", "scripting"],
+  "permissions": ["compose", "menus", "scripting", "storage"],
+  "background": {
+    "scripts": ["src/background/background.js"],
+    "type": "module"
+  },
   "compose_action": {
     "default_title": "Insert code block",
     "default_area": "formattoolbar",
     "default_popup": "src/popup/popup.html",
     "default_icon": "icons/thundercode.svg"
+  },
+  "commands": {
+    "_execute_compose_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C"
+      },
+      "description": "Insert code block"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": false
   }
 }

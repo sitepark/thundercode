@@ -3,6 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <title>ThunderCode</title>
+    <!--
+      The theme is linked here for one reason that is not styling: this is the
+      document the theme map is read out of, through the browser's own CSS
+      parser rather than a regex or a hand-written colour table. It is vendored
+      rather than pulled from a CDN, so it loads from the extension's own
+      origin and `cssRules` is readable without a SecurityError.
+
+      It sits before popup.css so that popup.css wins any overlap. Today there
+      is none — every selector in the theme is an `.hljs` one, and nothing in
+      this document carries those classes, the preview included: what it
+      adopts is the seam's own output, which is inline-styled and carries no
+      class attribute at all.
+    -->
+    <link
+      rel="stylesheet"
+      id="theme"
+      href="../../vendor/highlight.js-theme-github.css"
+    />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -19,8 +37,46 @@
       spellcheck="false"
       placeholder="Paste your code here"
     ></textarea>
+    <!--
+      Populated from the bundle itself rather than from a list written out
+      here, so the dropdown cannot drift from the languages that are actually
+      registered. Empty in the markup for the same reason.
+
+      It follows the textarea because that is the order of the work: paste
+      first, correct the language second — and after ticket 04 the second step
+      is usually not needed, because pasting moves this to the detected
+      language. There is no "auto-detect" entry: the point is to show what was
+      guessed, not to hide the guess behind a word that names no language.
+    -->
+    <label for="language">Language</label>
+    <select id="language"></select>
+    <!--
+      The preview is the block itself, not a picture of it: what goes in here
+      is exactly the HTML string the seam hands to the insert, parsed and
+      adopted. There is no second rendering path that could drift from the
+      first, which is what makes the preview worth trusting rather than
+      reading as indicative.
+
+      It follows the dropdown because it answers the dropdown — the question
+      it exists to settle is whether the language is right. Empty and hidden
+      in the markup: popup.js owns whether there is anything to show, and an
+      empty textarea shows nothing at all.
+    -->
+    <div id="preview" hidden></div>
+    <!--
+      Advisory only. It sits next to the textarea it describes and above the
+      Insert button, which nothing here ever disables: a large paste is the
+      user's call to make, and the extension's job is to make sure they know
+      they are making it.
+    -->
+    <p id="warning" class="warning" role="status" hidden></p>
     <p id="error" class="error" hidden></p>
-    <button id="insert" type="button">Insert</button>
+    <!--
+      The shortcut is named on the button because the popup is the only place
+      it is discoverable: Thunderbird's own shortcut list shows the binding for
+      opening this popup, never the one inside it.
+    -->
+    <button id="insert" type="button" title="Ctrl+Enter">Insert</button>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

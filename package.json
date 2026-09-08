@@ -7,9 +7,11 @@
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "package": "bash scripts/package.sh"
   },
   "devDependencies": {
+    "highlight.js": "11.12.0",
     "vitest": "^5.0.0"
   }
 }
