@@ -9,15 +9,15 @@ This ticket also settles the three behaviours that could not be verified from Th
 **Status:** ready-for-human
 
 - [x] Manifest V3, minimum Thunderbird 128, named ThunderCode, with the Gecko extension id `thundercode@sitepark.com` set (Thunderbird refuses to install without an id)
-- [ ] Installs as a temporary add-on with no manifest or console errors
-- [ ] A button appears in the compose window's format toolbar and opens a popup
+- [x] Installs as a temporary add-on with no manifest or console errors
+- [x] A button appears in the compose window's format toolbar and opens a popup
 - [ ] Pressing Insert places the hardcoded block at the cursor position, leaving the rest of the draft untouched
 - [ ] The popup closes after inserting
 - [ ] With several compose windows open, the block lands in the one the button was invoked from
 - [ ] When no usable cursor position exists in the body, the block is appended at the end of the body rather than failing
 - [x] Requested permissions are limited to what is actually used
-- [ ] **Finding recorded:** whether the compose editor's selection survives the popup taking focus. If it does not, a compose script that tracks the last valid range is implemented instead, and the popup messages it at insert time
-- [ ] **Finding recorded:** whether inserting HTML through the editor's own insert action is reachable from the compose script sandbox. If it is, use it; if not, fall back to direct Selection/Range DOM insertion
+- [x] **Finding recorded:** whether the compose editor's selection survives the popup taking focus. If it does not, a compose script that tracks the last valid range is implemented instead, and the popup messages it at insert time
+- [x] **Finding recorded:** whether inserting HTML through the editor's own insert action is reachable from the compose script sandbox. If it is, use it; if not, fall back to direct Selection/Range DOM insertion
 - [ ] **Finding recorded:** whether the insertion is undoable with Ctrl+Z, and whether Thunderbird considers the message modified afterwards (so closing the window warns about unsaved changes)
 
 ## Comments
@@ -113,3 +113,19 @@ end-of-body fallback.
 ### Superseded: the toolbar button's icon
 
 The icon this ticket shipped was blank in a running Thunderbird — `context-fill` is not painted in an add-on's action icon. Fixed under ticket 13, which also carries the hands-on check that the checkbox above ("A button appears in the compose window's format toolbar") was going to be ticked by.
+
+### Findings 1 and 2 are settled: `execCommand`
+
+The Error Console on a running Thunderbird reported:
+
+```
+ThunderCode: inserted via execCommand
+```
+
+That one line answers both, because of where in `insertIntoBody` it can be printed from.
+
+**Finding 1 — positive. The selection survives the popup taking focus.** `execCommand` is only attempted inside the `if (caretRange)` branch, and `caretRange` is non-null only when the document had a selection with at least one range *and* that range's `commonAncestorContainer` was inside `document.body`. So a usable caret was still there at insert time, after the popup had taken focus and been dismissed. The hedge this ticket described — a compose script tracking the last valid range over `selectionchange`, messaged at insert time — is not needed and should not be built. Ticket 08's caret-relative insertion rests on this.
+
+**Finding 2 — positive. `execCommand("insertHTML")` is reachable from the compose-script sandbox**, and returned true. The block therefore goes in through `HTMLEditor::InsertHTMLAsAction` rather than through the Selection/Range fallback. Both paths stay, since the fallback is what catches a composer with no caret at all, but the preferred one is the one that runs.
+
+**Finding 3 is still open**, and is now the only one. `execCommand` routing to a real editor action is the reason to *expect* the insert to be undoable and the message to be marked modified, but neither has been observed. Two keystrokes settle it: press Ctrl+Z after inserting, then close the window and see whether it warns about unsaved changes.
