@@ -48,6 +48,19 @@
     <label for="language">Language</label>
     <select id="language"></select>
     <!--
+      The preview is the block itself, not a picture of it: what goes in here
+      is exactly the HTML string the seam hands to the insert, parsed and
+      adopted. There is no second rendering path that could drift from the
+      first, which is what makes the preview worth trusting rather than
+      reading as indicative.
+
+      It follows the dropdown because it answers the dropdown — the question
+      it exists to settle is whether the language is right. Empty and hidden
+      in the markup: popup.js owns whether there is anything to show, and an
+      empty textarea shows nothing at all.
+    -->
+    <div id="preview" hidden></div>
+    <!--
       Advisory only. It sits next to the textarea it describes and above the
       Insert button, which nothing here ever disables: a large paste is the
       user's call to make, and the extension's job is to make sure they know

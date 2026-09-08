@@ -10,6 +10,7 @@ const languageField = document.getElementById("language");
 const insertButton = document.getElementById("insert");
 const errorLine = document.getElementById("error");
 const warningLine = document.getElementById("warning");
+const previewPane = document.getElementById("preview");
 
 /**
  * Tab width and font size, read once as the popup opens.
@@ -157,6 +158,136 @@ function refreshSizeWarning() {
 }
 
 sourceField.addEventListener("input", refreshSizeWarning);
+
+/**
+ * How long the popup waits for typing to stop before re-rendering, in
+ * milliseconds.
+ *
+ * The seam is not free: highlighting is a scan over the whole snippet, and the
+ * snippet may be hundreds of lines. Rendering on every keystroke would do that
+ * work once per character and throw all but the last result away.
+ *
+ * A trailing debounce is the simplest thing that fixes it, and the only thing
+ * tried. `requestIdleCallback` would schedule better and would also mean a
+ * preview that never appears at all while someone keeps typing; re-highlighting
+ * only the changed region is not something highlight.js offers. 150ms is longer
+ * than the gap between keystrokes of anyone typing fast, so a burst collapses
+ * into one render, and short enough that the preview still reads as immediate
+ * after a pause. Nothing measured it — it is a threshold, not a boundary, and
+ * the dominant path is a single paste, where the cost is one render either way.
+ */
+const PREVIEW_DEBOUNCE_MS = 150;
+
+let previewTimer;
+
+/**
+ * Guards against an older render finishing after a newer one. Incremented by
+ * every call to `renderPreview` and compared across its awaits.
+ */
+let previewGeneration = 0;
+
+/**
+ * Renders the preview from the same call the insert makes.
+ *
+ * This is the whole of the ticket: `html` here is not a rendering *like* the
+ * one that gets inserted, it is the string that will be. The seam is pure, so
+ * the same source, language, theme map and settings cannot produce two
+ * different blocks — which is why the preview can be trusted, and why there is
+ * deliberately no preview stylesheet and no simplified preview markup anywhere
+ * in this popup. A second rendering path would be a second thing to keep
+ * correct, and its drift would show up as a preview that was accurate right up
+ * until the day it mattered.
+ *
+ * The obvious tension is that this puts a built HTML string into a live
+ * document, which is the shape of an injection bug. Three things make it not
+ * one, and it is worth saying which of them is the real defence:
+ *
+ * - The string is not user HTML. It is the seam's output, and the seam escapes
+ *   every `&`, `<` and `>` in the source before it becomes markup — a test
+ *   pins that — so pasted markup arrives as text. This is the guarantee that
+ *   matters, and it is the same one the message body already relies on.
+ * - It is parsed inertly, by `DOMParser` into a detached document, and only
+ *   the resulting `<pre>` is adopted. A parse is not an execution: no script
+ *   runs, no `src` is fetched, no handler attribute is honoured, and that holds
+ *   whatever the string turns out to contain. `innerHTML` on the live document
+ *   would be one line shorter and would also fetch an `<img src>` if the seam
+ *   ever emitted one.
+ * - The popup is an extension page under the default MV3 CSP, so inline script
+ *   could not run here even if something managed to write it in.
+ */
+async function renderPreview() {
+  // An empty textarea shows nothing — not the bordered empty box the seam
+  // returns for empty source, and not an error either. There is nothing to
+  // preview before anything has been pasted, and a box appearing the moment
+  // the popup opens would read as the block already existing.
+  //
+  // Literally empty, not whitespace-only. Source that is all spaces *does*
+  // insert an empty bordered box, and a preview that hid it would be lying
+  // about the one thing this element exists to tell the truth about.
+  if (sourceField.value === "") {
+    hidePreview();
+    return;
+  }
+
+  // Both promises were started at load and are long resolved by the time
+  // anyone has pasted anything. They are awaited here rather than kept in a
+  // variable for the same reason the insert awaits them: there is then no
+  // state where this has to decide what a not-yet-loaded theme means.
+  const generation = ++previewGeneration;
+  const { tabWidth, fontSize } = await settings;
+  const resolvedThemeMap = await themeMap;
+  // A newer render was scheduled while this one waited. Dropping the stale one
+  // keeps an older render from being the one left on screen: with a debounce in
+  // front this is close to unreachable, but "close to" is not a property worth
+  // relying on for the element whose whole job is to be accurate.
+  if (generation !== previewGeneration) {
+    return;
+  }
+
+  const { html } = buildCodeBlockHtml({
+    source: sourceField.value,
+    // Read here rather than passed in, so whatever last set the dropdown wins —
+    // including ticket 04's detection, which assigns to it from script and so
+    // fires no `change`. The debounce covers that ordering for free: detection
+    // runs on the same `input` event this render was scheduled from, and has
+    // long finished by the time the timer fires.
+    language: languageField.value,
+    themeMap: resolvedThemeMap,
+    tabWidth,
+    fontSize,
+  });
+
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  previewPane.replaceChildren(
+    document.importNode(parsed.body.firstElementChild, true),
+  );
+  previewPane.hidden = false;
+}
+
+function hidePreview() {
+  previewPane.replaceChildren();
+  previewPane.hidden = true;
+}
+
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    // A render that fails clears the preview rather than leaving the last good
+    // one up. Stale is the one failure mode this element must not have: a
+    // preview showing the previous language beside a dropdown showing the new
+    // one is worse than no preview at all. The error itself is not surfaced
+    // here — the insert makes the identical call and reports it properly on the
+    // error line, and a preview failure is not an insert failure until someone
+    // presses Insert.
+    renderPreview().catch(hidePreview);
+  }, PREVIEW_DEBOUNCE_MS);
+}
+
+// The two inputs the block is built from. `input` covers typing, paste, cut and
+// undo alike; `change` is what a dropdown fires, and it is what makes a
+// corrected language confirmable by eye without touching the source again.
+sourceField.addEventListener("input", schedulePreview);
+languageField.addEventListener("change", schedulePreview);
 // Once at load as well, so the warning line starts in a state this function
 // owns rather than one the markup guessed at. The right-click prefill lands
 // later and calls it again for itself: assigning `value` from script does not
@@ -184,7 +315,10 @@ async function claimSelectionPrefill() {
     return;
   }
   sourceField.value = selectionText;
+  // Assigning `value` from script fires neither `input` nor `change`, so both
+  // of the things that watch the textarea have to be told by hand.
   refreshSizeWarning();
+  schedulePreview();
 }
 
 // Deliberately silent on failure. A prefill that does not arrive leaves an
