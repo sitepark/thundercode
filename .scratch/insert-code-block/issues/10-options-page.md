@@ -141,3 +141,47 @@ settings page that silently fails to save is worse than one showing an error.
 - **No `_locales`.** The spec rules out localisation; the page has five strings.
 - **README untouched.** Add-on preferences live where every add-on's
   preferences live, and the README is being edited by other tickets.
+
+### Review fixes: out-of-range values clamp, and the storage test is a real test
+
+**Clamping.** `coerceSettings` sent anything outside the bounds back to the
+default. That is a defensible reading of "invalid or empty values fall back to
+the defaults", and it is also how a font size of 40 silently became 13 — the one
+number the user certainly did not ask for. Out of range now clamps to the
+nearest bound; what is not a number at all still defaults, because there is no
+nearest bound to a value that is not on the line. The rule is therefore two
+rules, split on whether there was a number to honour:
+
+- `40` for a font size is a legible request for the largest size on offer, and
+  gets 32.
+- `"4px"`, `13.5`, `null`, an empty field: nothing to be close to, so the
+  default.
+
+The comment on `SETTING_FIELDS` argued explicitly for the old behaviour ("out of
+range is treated as invalid rather than clamped: one rule for every bad input is
+easier to explain"). It has been rewritten to argue for the new one rather than
+left contradicting the code.
+
+The empty field needed a guard of its own as a consequence, and it is worth
+knowing why: `Number("")` is `0`, which used to be out of range and now clamps
+to the minimum, so blank strings are caught before the arithmetic. That is this
+ticket's own case — clearing a value to retype it looks exactly like an empty
+field at every keystroke in between, and it has to mean the default, never 1.
+
+**The page says so out loud.** `show()` already put the resolved value back in
+the field, so the correction was visible; it was not, however, announced.
+`save()` now compares what was typed against what came back and reports "Saved,
+adjusted to what the block can use" when they differ, so a corrected value is
+something the user is told about rather than something they might notice.
+
+**The storage test.** `tests/settings.test.js` read its own source and asserted
+that the string `browser.storage.local` appeared in it — which passes for a
+mention in a comment or a call in unreachable code, and pins nothing. The
+premise behind it was wrong: `browser` is a global, not a DOM, so the read and
+the write are reachable from a Node test after all. The file now stubs
+`browser.storage` and asserts what the module does with it — that it asks
+`local` for both names, that it coerces whatever comes back, that a failed read
+falls back to the defaults while a failed write throws, and that a write stores
+the coerced values and reports them. `storage.sync` sits in the stub as a pair
+of throwing functions, so "improving" settings to follow the profile around
+fails the suite instead of passing it.

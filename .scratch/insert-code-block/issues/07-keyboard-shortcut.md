@@ -114,3 +114,8 @@ on macOS.
   about a binding inside it, so the popup is the only place it is discoverable.
 - **Nothing in the popup announces the opening shortcut.** It is rebindable, so
   any string stating it would be a lie the moment someone changes it.
+
+### Review fixes
+
+The `keydown` handler was the one place in the repo written `event =>` rather
+than `(event) =>`. Now it matches everything around it.

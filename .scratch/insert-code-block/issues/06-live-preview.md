@@ -178,3 +178,29 @@ scheduled it, by which time any synchronous listener on that event has long
 finished, whatever order the two listeners were registered in. If ticket 04's
 detection ends up asynchronous, it must call `schedulePreview()` itself after
 it assigns to the dropdown, the same way `claimSelectionPrefill` does.
+
+### Review fixes: one seam call, and comments that had gone stale
+
+`renderPreview` is now `renderFromSource`: it settles the language as well as
+rendering the preview, from a single call to the seam. Ticket 04's comments
+carry the whole of it. The short version is that **"For whoever merges ticket
+04" above is now moot** — the preview no longer reads a dropdown that something
+else filled in, because the call that renders the preview is the call that fills
+the dropdown in. The ordering hazard that section was written to head off cannot
+occur.
+
+`schedulePreview` gained a sibling, `renderNow`, for the two places content
+arrives all at once rather than being typed: the popup opening and the
+right-click prefill.
+
+Two comments referred to this ticket and ticket 10 as future work, and both have
+landed:
+
+- `popup.css` said the textarea "is a paste target, not a preview of the block —
+  ticket 06 brings the preview, and duplicating the block's exact type here
+  would only give ticket 10 two font sizes to keep in step". It now names
+  `#preview` and the configurable font size directly.
+- `popup.html` said nothing in the document carries the theme's `.hljs` classes
+  "until ticket 06's preview does". The preview adopts the seam's output, which
+  carries no class attribute at all, so the claim still holds — the comment now
+  says why instead of promising it will stop being true.

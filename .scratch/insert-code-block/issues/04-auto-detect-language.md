@@ -230,3 +230,43 @@ markup that actually has spans in it.
   — comes back as nothing. Harmless here, since the textarea is for code and the
   dropdown is one click away, but worth knowing before someone reads a
   surprising guess as a bug.
+
+### Review fixes: the two seam calls are one
+
+The accepted wart above — the popup building a whole block to read one field off
+it, on the same event ticket 06's preview renders from — is fixed, and fixed in
+the direction this ticket predicted: one call producing the preview *and* the
+detected language is strictly less work than two, and it is literally the same
+call.
+
+In `popup.js`:
+
+- `refreshDetectedLanguage` is gone. `renderFromSource` (ticket 06's
+  `renderPreview`) asks the seam for detection when it is due and assigns
+  `detectedLanguage` to the dropdown itself. The preview and the dropdown now
+  come out of one call over one source, so they are incapable of disagreeing —
+  which was already the intent, but was previously two calls that happened to
+  agree.
+- Detection therefore rides the 150ms debounce instead of running undebounced on
+  every wholesale input. That is the behaviour change: the dropdown updates when
+  the render does rather than synchronously on the paste. It is also the whole
+  point — the reasoning written at `PREVIEW_DEBOUNCE_MS` ("half a second for the
+  3000-line one") was being contradicted by a second, undebounced pass over the
+  same source.
+- Detection still only fires on a wholesale change. The trigger is now a
+  `detectionDue` flag that the change sets and the render clears, so two pastes
+  in quick succession detect once, on the render that follows the last of them.
+- `requestedLanguage()` is read by the insert as well, so paste followed by
+  Ctrl+Enter inside the debounce window detects rather than shipping the block
+  under whatever the dropdown last showed. Same pure seam over the same source,
+  so the insert and the pending render cannot reach different answers.
+- The three `input` listeners — detection, size warning, preview — are one
+  `handleSourceChanged({ wholesale, immediate })`, and `claimSelectionPrefill`
+  announces its change through it instead of replaying each listener by hand
+  under three copies of the same comment. The load-time call goes through it
+  too, which is what still derives the dropdown's opening value from the empty
+  textarea rather than hardcoding Plain text.
+
+Load and the right-click prefill pass `immediate`: content that arrives all at
+once has no burst to collapse, and a debounce there would only mean the dropdown
+visibly correcting itself a moment after the popup appeared.

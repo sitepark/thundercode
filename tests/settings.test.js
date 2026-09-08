@@ -1,10 +1,12 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CODE_BLOCK_DEFAULTS } from "../src/code-block/build-code-block-html.js";
-import { SETTING_FIELDS, coerceSettings } from "../src/settings/settings.js";
+import {
+  SETTING_FIELDS,
+  coerceSettings,
+  readSettings,
+  writeSettings,
+} from "../src/settings/settings.js";
 
 /**
  * The options page is verified by hand, like the popup — the runner has no DOM
@@ -12,9 +14,6 @@ import { SETTING_FIELDS, coerceSettings } from "../src/settings/settings.js";
  * "invalid or empty values fall back to the defaults rather than producing a
  * broken block", is the coercion between storage and the seam. It is a pure
  * function precisely so that this file can exist.
- *
- * `storage.local` itself is not exercised anywhere here. There is no storage in
- * Node, and a mock of it would only assert that this file's mock works.
  *
  * The expected numbers are read from `CODE_BLOCK_DEFAULTS` and `SETTING_FIELDS`
  * rather than written out, so that retuning a default stays a one-line change
@@ -79,17 +78,19 @@ describe("coerceSettings", () => {
   /**
    * Zero and negatives are the two that would actually break the block rather
    * than merely look odd: the seam expands a tab by repeating a space that many
-   * times, and a negative count throws.
+   * times, and a negative count throws. They are still numbers, so they clamp
+   * to the minimum like anything else below the range — what matters is that
+   * neither reaches the seam.
    */
-  it("rejects zero and negative values", () => {
+  it("clamps zero and negative values up to the minimum", () => {
     expect(coerceSettings({ tabWidth: 0 }).tabWidth).toBe(
-      CODE_BLOCK_DEFAULTS.tabWidth,
+      SETTING_FIELDS.tabWidth.min,
     );
     expect(coerceSettings({ tabWidth: -4 }).tabWidth).toBe(
-      CODE_BLOCK_DEFAULTS.tabWidth,
+      SETTING_FIELDS.tabWidth.min,
     );
     expect(coerceSettings({ fontSize: 0 }).fontSize).toBe(
-      CODE_BLOCK_DEFAULTS.fontSize,
+      SETTING_FIELDS.fontSize.min,
     );
   });
 
@@ -100,20 +101,35 @@ describe("coerceSettings", () => {
   });
 
   /**
-   * Out of range goes back to the default rather than being clamped, so the
-   * field never shows a third number the user did not type. A tab width of a
-   * few hundred is the interesting one: it does not throw, it produces a
-   * screenful of indentation and no visible code.
+   * Out of range is corrected to the nearest bound rather than sent back to
+   * the default, so a request the extension cannot grant is answered with the
+   * closest thing it can rather than with an unrelated number. A tab width of
+   * a few hundred is the interesting one: it does not throw, it produces a
+   * screenful of indentation and no visible code, and 16 is what the user
+   * plainly meant by it.
    */
-  it("defaults rather than clamps when a value is out of range", () => {
-    for (const [name, { min, max, fallback }] of Object.entries(
-      SETTING_FIELDS,
-    )) {
-      expect(coerceSettings({ [name]: min - 1 })[name], name).toBe(fallback);
-      expect(coerceSettings({ [name]: max + 1 })[name], name).toBe(fallback);
+  it("clamps to the nearest bound when a value is out of range", () => {
+    for (const [name, { min, max }] of Object.entries(SETTING_FIELDS)) {
+      expect(coerceSettings({ [name]: min - 1 })[name], name).toBe(min);
+      expect(coerceSettings({ [name]: max + 1 })[name], name).toBe(max);
+      expect(coerceSettings({ [name]: 1000 })[name], name).toBe(max);
       expect(coerceSettings({ [name]: min })[name], name).toBe(min);
       expect(coerceSettings({ [name]: max })[name], name).toBe(max);
     }
+  });
+
+  /**
+   * The line between the two rules, and the reason there are two: a number out
+   * of range is a request to honour as closely as possible, while text that is
+   * not a number at all names nothing to be close to.
+   */
+  it("still defaults, rather than clamping, for what is not a number", () => {
+    expect(coerceSettings({ tabWidth: "4px" }).tabWidth).toBe(
+      CODE_BLOCK_DEFAULTS.tabWidth,
+    );
+    expect(coerceSettings({ tabWidth: "" }).tabWidth).toBe(
+      CODE_BLOCK_DEFAULTS.tabWidth,
+    );
   });
 
   it("resolves each setting on its own, so one bad value costs one", () => {
@@ -147,25 +163,113 @@ describe("coerceSettings", () => {
 });
 
 /**
- * A source-level check, because the choice it pins has no runtime here: Node
- * has no `browser.storage` to observe, and by the time it could be observed the
- * add-on is installed. The spec rules out `storage.sync` outright, so the cheap
- * guard against someone "fixing" settings to follow the profile around is to
- * assert the string never appears.
+ * `browser` is a global, not a DOM, so the read and the write are reachable
+ * from here after all — which is what makes these assertions about behaviour
+ * rather than about the text of the module. An earlier version of this file
+ * read its own source and asserted that the string `browser.storage.local`
+ * appeared in it; that passes for a mention in a comment and for a call in
+ * code nothing reaches, and it pinned nothing.
+ *
+ * The stub is deliberately thin. It is not a model of `storage.local` — there
+ * is no store behind it, and asserting on a store would only be asserting that
+ * this file's stub works. What it records is which area was called, with what,
+ * and what the caller did with the answer, and each of those is a decision the
+ * module actually makes.
  */
 describe("the settings store", () => {
-  const source = readFileSync(
-    resolve(
-      dirname(fileURLToPath(import.meta.url)),
-      "../src/settings/settings.js",
-    ),
-    "utf8",
-  );
+  /**
+   * The area the spec rules out. Left in the stub rather than omitted, and
+   * throwing rather than recording, so that "settings follow the profile
+   * around" cannot be introduced quietly by someone who thinks it is an
+   * improvement: every test in here fails at once instead.
+   */
+  const sync = {
+    get: () => {
+      throw new Error("storage.sync is ruled out by the spec");
+    },
+    set: () => {
+      throw new Error("storage.sync is ruled out by the spec");
+    },
+  };
 
-  it("is storage.local and never storage.sync", () => {
-    // The qualified name, so that prose about the decision does not count as a
-    // use of it. A real call site can only be written `browser.storage.<area>`.
-    expect(source).toContain("browser.storage.local");
-    expect(source).not.toMatch(/browser\.storage\.sync/);
+  let calls;
+
+  beforeEach(() => {
+    calls = { get: [], set: [] };
+    vi.stubGlobal("browser", {
+      storage: {
+        local: {
+          get: async (names) => {
+            calls.get.push(names);
+            return { tabWidth: 8, fontSize: 11 };
+          },
+          set: async (values) => {
+            calls.set.push(values);
+          },
+        },
+        sync,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reads both settings out of storage.local", async () => {
+    expect(await readSettings()).toEqual({ tabWidth: 8, fontSize: 11 });
+    expect(calls.get).toEqual([["tabWidth", "fontSize"]]);
+  });
+
+  /**
+   * Storage can hold anything a previous version or a hand-edited profile put
+   * there, so what comes back out is coerced rather than trusted.
+   */
+  it("coerces what storage hands back", async () => {
+    browser.storage.local.get = async () => ({ tabWidth: 99, fontSize: "x" });
+
+    expect(await readSettings()).toEqual({
+      tabWidth: SETTING_FIELDS.tabWidth.max,
+      fontSize: CODE_BLOCK_DEFAULTS.fontSize,
+    });
+  });
+
+  /**
+   * A settings read failing is not a reason to refuse to insert code, so the
+   * popup gets working numbers and the console gets the reason.
+   */
+  it("falls back to the defaults when the read fails", async () => {
+    browser.storage.local.get = async () => {
+      throw new Error("profile is on fire");
+    };
+
+    expect(await readSettings()).toEqual(coerceSettings());
+  });
+
+  /**
+   * Coerced on the way in as well as on the way out, so the store never holds
+   * a value the block would not use — and the caller is told what was stored,
+   * which is what lets the options page show the correction.
+   */
+  it("writes coerced values and reports back what was stored", async () => {
+    const stored = await writeSettings({ tabWidth: "2", fontSize: 400 });
+
+    expect(stored).toEqual({
+      tabWidth: 2,
+      fontSize: SETTING_FIELDS.fontSize.max,
+    });
+    expect(calls.set).toEqual([stored]);
+  });
+
+  /**
+   * Unlike the read, this one throws: a settings page that says "Saved." when
+   * nothing was saved is worse than one that shows the failure.
+   */
+  it("lets a failed write reach the options page", async () => {
+    browser.storage.local.set = async () => {
+      throw new Error("disk full");
+    };
+
+    await expect(writeSettings({ tabWidth: 2 })).rejects.toThrow("disk full");
   });
 });

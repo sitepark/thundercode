@@ -85,6 +85,11 @@ message, so the builder writes a second newline to compensate. This is a
 property of the HTML spec rather than of this code, which is why it is worth a
 named test — nothing about reading the builder would suggest it.
 
+*(Superseded by ticket 05: stripping leading blank lines removed the hazard
+rather than compensating for it, so the compensation is gone. The test remains,
+now pinning the guarantee that replaced it. See the review-fixes section at the
+end of this file.)*
+
 ### Decisions worth knowing about
 
 - **`deliveryFormat` is set before the block is inserted, not after.** If the
@@ -129,3 +134,59 @@ fixed above rather than argued with:
   fixture contained no digits, and "no language label" only because `print(1)`
   does not contain the word `python`. Both now assert that the block's text is
   the source and nothing else.
+
+### Review fixes: `setComposeDetails` verified, and two comments made true again
+
+**The current order is right, and here is the evidence rather than the
+inference.** This ticket narrowed the spec's *"every call therefore replaces the
+whole document including `<head>`, moves the caret to the top of the message,
+and destroys the undo history"* to "every call that passes a body", and nothing
+re-checked it. If the spec's sentence were literally true, the caret would be at
+the top of the message before `insertIntoBody` reads the selection, and
+caret-relative insertion, selection replacement and "cursor left somewhere
+sensible" would all be broken on every insert.
+
+It is not literally true. `browser.compose.setComposeDetails` in
+`mail/components/extensions/parent/ext-compose.js` hands the details to
+`SetComposeDetails` in `mail/components/compose/content/MsgComposeCommands.js`,
+where the entire document rewrite sits inside one guard:
+
+```js
+const editor = GetCurrentEditor();
+if (typeof newValues.body == "string") {
+  // eslint-disable-next-line no-unsanitized/property
+  editor.document.documentElement.innerHTML = newValues.body;
+  editor.beginningOfDocument(); // Move caret to the first editable point.
+  editor.clearUndoRedo();
+  gMsgCompose.bodyModified = true;
+}
+```
+
+`typeof … == "string"` and not a truthiness test, so even `body: ""` rebuilds —
+but an absent `body` does not enter the branch at all. `deliveryFormat` is
+handled separately in `ext-compose.js`, where it sets
+`compFields.deliveryFormat` and calls `initSendFormatMenu()`, which only
+re-checks four menu items. So the call as written cannot move the caret, drop
+the selection or clear undo. The two marks it does leave are unconditional and
+harmless here: `gContentChanged = true`, on a message this insert is about to
+change anyway, and a `focus()` restoring whatever was focused on entry. Read at
+comm-central tip in September 2026; not re-checked against an older ESR.
+
+The code is therefore unchanged, and the comment above the call cites the
+implementation instead of restating the spec's sentence, so the next reader does
+not have to redo this. The spec's own wording in "Insertion mechanism"
+overstates it and is left standing as the historical record it is.
+
+**The leading-newline reason is back.** Ticket 05 made `restoreLeadingNewline`
+unreachable and removed it, and the recorded *why* went with it. It is now a
+comment on `stripBlankEdgeLines`, which is where the guarantee that replaced it
+lives: an HTML parser eats a newline directly after `<pre>`, and nothing has to
+compensate for that only because the leading trim means the content can never
+start with one. Loosen the trim and the compensation has to come back.
+
+**`vitest.config.js` now states `include: ["tests/**/*.test.js"]`.** Vitest's
+default glob is the whole tree, so `pnpm test` in a checkout with agent
+worktrees under `.claude/` ran dozens of stale duplicates of this suite and
+reported their failures as this one's. Tests live in `tests/`; the config says
+so now, next to the `environment: "node"` line and for the same reason — stating
+the convention rather than leaving it to a default.

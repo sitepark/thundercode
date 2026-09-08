@@ -6,19 +6,22 @@ import { CODE_BLOCK_DEFAULTS } from "../code-block/build-code-block-html.js";
  * One table rather than a pair of hand-written branches, because both the
  * options page and the coercion below need the same three numbers per field.
  * The page reads `min` and `max` straight onto its `<input type="number">`, so
- * the spinner arrows stop exactly where the coercion starts rejecting; writing
- * them into `options.html` instead would put the range in two places and let
- * the field offer a value that silently becomes the default on save.
+ * the spinner arrows stop exactly where the coercion starts correcting;
+ * writing them into `options.html` instead would put the range in two places.
  *
  * The fallbacks are not stated here at all — they come from the seam, which is
  * what actually renders the block.
  *
  * The bounds themselves are judgement, not physics. They are wide enough that
  * nobody sane hits them and narrow enough that a fat-fingered `44` for a tab
- * width cannot produce a block of pure indentation. Out of range is treated as
- * invalid rather than clamped: one rule for every bad input is easier to
- * explain, and it means the field always shows either what the user typed or
- * the default, never a third number nobody asked for.
+ * width cannot produce a block of pure indentation. Out of range is clamped to
+ * the nearest bound rather than sent back to the default, which is a reversal:
+ * the default was one rule for every bad input, but "40" for a font size is
+ * not a bad input, it is a legible request for the largest size on offer, and
+ * answering it with 13 loses the only information the user gave. Nonsense
+ * still defaults — see `coerceField` — so the two cases are distinguished by
+ * whether there was a number to honour at all, and the options page shows what
+ * it settled on either way.
  */
 export const SETTING_FIELDS = Object.freeze({
   tabWidth: Object.freeze({
@@ -69,15 +72,29 @@ function coerceField(value, { fallback, min, max }) {
   // guessing at it is worse than defaulting.
   if (typeof value !== "number" && typeof value !== "string") return fallback;
 
-  // `Number("")` and `Number(" ")` are 0, which is out of range for both
-  // fields, so a cleared field lands on the default without a case of its own.
+  // An empty or blank field is the ticket's own case, and it has to be caught
+  // before the arithmetic rather than by it: `Number("")` and `Number(" ")`
+  // are 0, and now that out of range clamps, a cleared field would come back
+  // as the minimum instead of the default. Clearing a value to retype it looks
+  // exactly like this at every keystroke in between, and it must mean "the
+  // default", never "1".
+  if (typeof value === "string" && value.trim() === "") return fallback;
+
   const number = Number(value);
 
   // Whole numbers: fractional tab stops do not exist, and the spinner steps by
-  // one, so a `13.5` in here came from somewhere the user cannot see.
-  return Number.isInteger(number) && number >= min && number <= max
-    ? number
-    : fallback;
+  // one, so a `13.5` in here came from somewhere the user cannot see. This is
+  // the "no number to honour" case — along with `NaN` from `"4px"` — and it
+  // defaults rather than clamping, because there is no nearest bound to a
+  // value that is not on the line.
+  if (!Number.isInteger(number)) return fallback;
+
+  // Everything else is a number the user meant, so it is corrected to the
+  // nearest thing the block can render rather than thrown away. A silent
+  // reversion to the default is the failure this avoids: 40 for a font size
+  // and 13 for a font size look identical in storage afterwards, and the only
+  // place the difference shows up is the next block they insert.
+  return Math.min(Math.max(number, min), max);
 }
 
 /**
@@ -107,9 +124,9 @@ export async function readSettings() {
  *
  * Coerced on the way in as well as on the way out, so the store never holds a
  * value the block would not use. The return value is what lets the page put
- * the resolved number back in the field: type something impossible, and the
- * field shows you the default it fell back to rather than leaving you to
- * discover it in an email.
+ * the resolved number back in the field: type 40 for a font size and the field
+ * shows you the 32 it was clamped to, rather than leaving you to discover the
+ * correction in an email.
  *
  * Unlike the read, this one throws. A failed write is a settings page that
  * lies about having saved, which is worth a visible message.
