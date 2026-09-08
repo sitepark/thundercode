@@ -20,6 +20,16 @@ textarea {
   white-space: pre-wrap;
 }
 
+/*
+  Amber, not the error red, and deliberately not shouting. This is information
+  the user may well act on by ignoring it, so it must not look like something
+  has gone wrong.
+*/
+.warning {
+  margin: 0 0 1em;
+  color: #8a6100;
+}
+
 .error {
   margin: 0 0 1em;
   color: #b42318;
