@@ -1,0 +1,21 @@
+body {
+  box-sizing: border-box;
+  width: 22em;
+  margin: 0;
+  padding: 1em;
+  font: menu;
+}
+
+.lead {
+  margin: 0 0 1em;
+}
+
+.error {
+  margin: 0 0 1em;
+  color: #b42318;
+}
+
+button {
+  width: 100%;
+  padding: 0.4em;
+}
