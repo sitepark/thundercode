@@ -1,33 +1,51 @@
-# Builds and publishes a release when a version tag is pushed.
+# Publishes a release and opens the next version. Run it by hand from the
+# Actions tab; there is no automatic trigger.
 #
-# The tag is the trigger, but `manifest.json` is the source of truth: the job
-# refuses to build if the two disagree, because the archive takes its name and
-# its declared version from the manifest and a mismatch would ship a file
-# labelled with a version nobody tagged.
+# The version in manifest.json is what gets released — this workflow never
+# chooses it. It tags that version, publishes it, and only then raises the
+# manifest to the next one, so `main` always sits on an unreleased version and
+# the tag always names a commit where the manifest agreed with it.
 #
-# Nothing here writes to the repository. `updates.json` is generated from the
-# manifest and the built archive and uploaded alongside it, so the update
-# manifest cannot drift from the release it describes.
+# Why the tag is created by the release rather than pushed first: a tag pushed
+# with the default GITHUB_TOKEN does not trigger workflows, so a `on: push:
+# tags:` job would never fire. Creating the tag as part of publishing avoids
+# needing a personal access token to work around that.
 #
-# Do not mark a release as a prerelease or leave it as a draft. `update_url`
-# resolves through `releases/latest`, which skips both — a prerelease would
-# publish the archive while silently leaving every installed copy pointed at
-# the version before it.
+# The release must not be a draft or a prerelease. `update_url` resolves
+# through `releases/latest`, which skips both — either one would publish the
+# archive while leaving every installed copy pointed at the previous version.
 name: Release
 
 on:
-  push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Which part to raise for the next development version"
+        type: choice
+        options:
+          - minor
+          - patch
+          - major
+        default: minor
 
 permissions:
   contents: write
+
+# Two of these at once would race on the push to main and could publish two
+# releases from the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Full history and tags: the guard below asks git whether this version
+      # has already been released, which a shallow clone cannot answer.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Reads the pnpm version from package.json's `packageManager` field.
       - uses: pnpm/action-setup@v4
@@ -39,16 +57,33 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Check the tag matches manifest.json
+      - name: Read the version being released
+        id: version
+        run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to release from anywhere but main
         run: |
-          manifest_version="$(node -p "require('./manifest.json').version")"
-          if [ "$manifest_version" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag '$GITHUB_REF_NAME' does not match manifest version '$manifest_version'" >&2
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Release must be dispatched from main, got '$GITHUB_REF'" >&2
             exit 1
           fi
 
-      # Covers the update-manifest generator, whose output is uploaded below
-      # and never reviewed by anyone before Thunderbird fetches it.
+      - name: Refuse to release a version that is already tagged
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "Tag '$version' already exists — the manifest was not bumped after the last release" >&2
+            exit 1
+          fi
+
+      - name: Refuse to release a version the changelog does not describe
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          if ! grep -qF "## [$version]" CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## [$version]' section" >&2
+            exit 1
+          fi
+
       - run: pnpm test
 
       - name: Build the archive
@@ -62,9 +97,31 @@ jobs:
         run: |
           echo "json=$(node scripts/build-updates-json.mjs '${{ steps.package.outputs.xpi }}')" >> "$GITHUB_OUTPUT"
 
-      - uses: softprops/action-gh-release@v2
+      - name: Publish
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: |
             ${{ steps.package.outputs.xpi }}
             ${{ steps.updates.outputs.json }}
           generate_release_notes: true
+          # Explicit because everything downstream depends on it: this is what
+          # `releases/latest/download/updates.json` resolves to.
+          make_latest: "true"
+          draft: false
+          prerelease: false
+
+      # Last, deliberately. If anything above fails the manifest still holds
+      # the version that failed to release, so a fixed re-run releases it
+      # rather than skipping it.
+      - name: Open the next version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          next="$(node scripts/bump-version.mjs '${{ inputs.bump }}')"
+          git add manifest.json
+          git commit -m "Open $next for development" \
+                     -m "Released ${{ steps.version.outputs.version }}."
+          git push origin HEAD:main

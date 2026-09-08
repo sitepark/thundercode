@@ -72,10 +72,14 @@ the release is being prepared on a branch.
 
 ## Updates
 
-- [ ] The published release is **not** a draft and **not** a prerelease.
-      `releases/latest` skips both, so either one leaves every installed copy
-      pointed at the previous version while the archive sits there looking
-      published.
+- [ ] The published release is **not** a draft and **not** a prerelease. The
+      workflow sets both false, so this is a check that nobody edited the
+      release afterwards: `releases/latest` skips both, and either one leaves
+      every installed copy pointed at the previous version while the archive
+      sits there looking published.
+- [ ] `main` now holds the *next* version, pushed by the workflow's bump
+      commit. If it still holds the released one, the bump step failed and the
+      next release will refuse to start.
 - [ ] `updates.json` is attached to the release alongside the `.xpi`, and
       <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
       returns it.

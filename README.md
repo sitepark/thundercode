@@ -60,32 +60,45 @@ popup. Compose scripts are injected per compose window, so changes under
 `src/compose/` need the compose window reopened as well — reloading the add-on
 does not reach one that is already open.
 
-Run the tests with `pnpm test`. They cover the manifest, the update manifest and
-the HTML builder; everything that needs a running compose window is checked by
-hand against `docs/release-checklist.md`.
+Run the tests with `pnpm test`. They cover the manifest, the update manifest,
+the version arithmetic and the HTML builder; everything that needs a running
+compose window is checked by hand against `docs/release-checklist.md`.
 
 ## Releasing
 
-The version in `manifest.json` is the single source of truth. A release is one
-commit followed by one tag:
+The version in `manifest.json` is what gets released; the workflow never
+chooses it. Releasing is running an action, not pushing a tag.
 
-1. Bump `version` in `manifest.json`.
-2. Add the section to `CHANGELOG.md`.
-3. Commit, then tag with the bare version (`1.0.0`, no `v` prefix).
+1. Write the section for this version in `CHANGELOG.md`: rename
+   `## [Unreleased]` to `## [<version>] - <date>`, add a fresh
+   `## [Unreleased]` above it, and update the compare links at the bottom.
+2. Commit that to `main`, and run `docs/release-checklist.md` — the action
+   publishes immediately, so this is the last point at which nothing has
+   shipped.
+3. **Actions ▸ Release ▸ Run workflow**, on `main`. Leave the bump at `minor`
+   unless the next cycle is a patch or a major.
 
-The tag pipeline checks the tag against the manifest, runs the tests, builds
-the archive, generates `updates.json` from the manifest and the archive's
-digest, and attaches both to the release. Nothing writes to `main`, and the
-update manifest is never hand-edited.
+The workflow refuses to start unless it is on `main`, the version is not
+already tagged, and `CHANGELOG.md` has a section for it. It then runs the
+tests, builds the archive, generates `updates.json` from the manifest and the
+archive's digest, publishes both under a tag it creates itself, and finally
+raises `manifest.json` to the next version and pushes that to `main`.
 
-**Do not mark a release as a prerelease, and do not leave it as a draft.**
-Thunderbird polls `releases/latest/download/updates.json`, and that permalink
-skips both — a prerelease would publish the archive while leaving every
-installed copy pointed at the version before it.
+So `main` always sits on an unreleased version, and every tag names a commit
+where the manifest agreed with it. The bump comes last on purpose: if anything
+fails, the manifest still holds the version that failed to release, so a fixed
+re-run releases it rather than skipping it.
 
-`update_url` is baked into every installed copy: a copy installed today polls
-that exact URL forever. Changing it would strand existing installs rather than
-migrate them, which is why it names no version and no tag.
+Two things the workflow depends on and cannot recover from:
+
+- **The release must not be a draft or a prerelease.** The workflow sets both
+  to false; do not edit a published release to change that. Thunderbird polls
+  `releases/latest/download/updates.json`, and that permalink skips both — a
+  prerelease would publish the archive while leaving every installed copy
+  pointed at the version before it.
+- **`update_url` is baked into every installed copy.** A copy installed today
+  polls that exact URL forever, so moving it would strand existing installs
+  rather than migrate them. That is why it names no version and no tag.
 
 ## Where the console output goes
 
