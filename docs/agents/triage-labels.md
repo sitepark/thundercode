@@ -1,6 +1,8 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+The skills speak in terms of five canonical triage roles. In this repo they are
+GitHub labels on <https://github.com/sitepark/thundercode/issues>, and the
+label strings are the role names verbatim.
 
 | Label in mattpocock/skills | Label in our tracker | Meaning                                  |
 | -------------------------- | -------------------- | ---------------------------------------- |
@@ -10,6 +12,15 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
+When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the
+corresponding label string from this table.
 
-Edit the right-hand column to match whatever vocabulary you actually use.
+Apply and change them with `gh`:
+
+```sh
+gh issue edit <number> --add-label ready-for-agent --remove-label needs-triage
+```
+
+Exactly one of these should be set at a time — they are states, not tags. The
+five are exhaustive: an open issue with none of them has not been triaged, which
+is what `needs-triage` exists to say out loud.

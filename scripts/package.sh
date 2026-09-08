@@ -51,6 +51,7 @@ exclusions=(
   # directory (main checkout) and as a plain file (git worktrees).
   '.scratch/*'
   'docs/*'
+  '.github/*'
   '.git'
   '.git/*'
   '.gitignore'

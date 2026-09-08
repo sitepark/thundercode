@@ -1,0 +1,70 @@
+# Builds and publishes a release when a version tag is pushed.
+#
+# The tag is the trigger, but `manifest.json` is the source of truth: the job
+# refuses to build if the two disagree, because the archive takes its name and
+# its declared version from the manifest and a mismatch would ship a file
+# labelled with a version nobody tagged.
+#
+# Nothing here writes to the repository. `updates.json` is generated from the
+# manifest and the built archive and uploaded alongside it, so the update
+# manifest cannot drift from the release it describes.
+#
+# Do not mark a release as a prerelease or leave it as a draft. `update_url`
+# resolves through `releases/latest`, which skips both — a prerelease would
+# publish the archive while silently leaving every installed copy pointed at
+# the version before it.
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from package.json's `packageManager` field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the tag matches manifest.json
+        run: |
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          if [ "$manifest_version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag '$GITHUB_REF_NAME' does not match manifest version '$manifest_version'" >&2
+            exit 1
+          fi
+
+      # Covers the update-manifest generator, whose output is uploaded below
+      # and never reviewed by anyone before Thunderbird fetches it.
+      - run: pnpm test
+
+      - name: Build the archive
+        id: package
+        run: echo "xpi=$(pnpm run --silent package)" >> "$GITHUB_OUTPUT"
+
+      # Reads the digest off the archive built in the previous step, so the
+      # hash in the manifest is of the exact bytes being uploaded.
+      - name: Build the update manifest
+        id: updates
+        run: |
+          echo "json=$(node scripts/build-updates-json.mjs '${{ steps.package.outputs.xpi }}')" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.package.outputs.xpi }}
+            ${{ steps.updates.outputs.json }}
+          generate_release_notes: true

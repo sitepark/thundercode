@@ -184,10 +184,22 @@ describe("manifest", () => {
     });
   });
 
+  /**
+   * `compose_action.default_icon` dresses the toolbar button and nothing else.
+   * Without a top-level `icons` key the add-on itself has no icon, so the
+   * Add-ons Manager falls back to the generic puzzle piece — the state
+   * Thunderbird's review tooling calls `addon-icon-missing`. The same SVG
+   * serves both: it is already scheme-aware, which sized PNGs would not be.
+   */
+  it("gives the add-on an icon of its own, not just the toolbar button", () => {
+    expect(Object.keys(manifest.icons).length).toBeGreaterThan(0);
+  });
+
   it("references only files that exist", () => {
     const referenced = [
       manifest.compose_action.default_popup,
       manifest.compose_action.default_icon,
+      ...Object.values(manifest.icons),
       ...manifest.background.scripts,
       manifest.options_ui.page,
     ];

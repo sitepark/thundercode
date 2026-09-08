@@ -1,0 +1,42 @@
+# Runs on every push to main and every pull request, so a break surfaces when
+# it lands rather than at tag time. The release workflow re-runs the same suite
+# on the tagged commit; this one exists to make that second run a formality.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from package.json's `packageManager` field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test
+
+      # The release job reads the archive path off this script's stdout and
+      # uploads whatever it names, so a script that breaks — or that stops
+      # putting manifest.json at the archive root — fails a release rather
+      # than a test run. Check it here, where the fix is cheap.
+      - name: Check the archive and update manifest still build
+        run: |
+          xpi="$(pnpm run --silent package)"
+          test -f "$xpi"
+          unzip -Z1 "$xpi" | grep -qx 'manifest.json'
+          json="$(node scripts/build-updates-json.mjs "$xpi")"
+          test -f "$json"
