@@ -19,6 +19,13 @@
       spellcheck="false"
       placeholder="Paste your code here"
     ></textarea>
+    <!--
+      Advisory only. It sits next to the textarea it describes and above the
+      Insert button, which nothing here ever disables: a large paste is the
+      user's call to make, and the extension's job is to make sure they know
+      they are making it.
+    -->
+    <p id="warning" class="warning" role="status" hidden></p>
     <p id="error" class="error" hidden></p>
     <button id="insert" type="button">Insert</button>
     <script type="module" src="popup.js"></script>

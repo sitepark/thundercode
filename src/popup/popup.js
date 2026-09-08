@@ -1,9 +1,11 @@
 import { buildCodeBlockHtml } from "../code-block/build-code-block-html.js";
 import { insertIntoBody } from "../compose/insert-into-body.js";
+import { measureSnippet } from "./snippet-size.js";
 
 const sourceField = document.getElementById("source");
 const insertButton = document.getElementById("insert");
 const errorLine = document.getElementById("error");
+const warningLine = document.getElementById("warning");
 
 /**
  * The compose window this popup was opened from.
@@ -45,6 +47,34 @@ async function insert() {
     throw injection.error;
   }
 }
+
+/**
+ * Advisory, and structurally so: this function writes to the warning line and
+ * to nothing else. It never touches `insertButton.disabled`, and neither does
+ * the insert path read the warning — emailing three thousand lines of code is a
+ * mistake worth mentioning and not one worth preventing. Ticket 02 removed the
+ * last thing that gated Insert on the textarea's contents; this is not quietly
+ * putting one back, and there is no size at which it starts to.
+ *
+ * Recomputed from scratch on every `input`, which covers paste, typing, cut and
+ * undo alike. That is also what clears the warning again when the content drops
+ * back under the threshold: there is no separate hide path to forget to call.
+ */
+function refreshSizeWarning() {
+  const { lineCount, isLarge } = measureSnippet(sourceField.value);
+  warningLine.textContent = isLarge
+    ? `${lineCount} lines. The block carries all its formatting inline, so ` +
+      `the inserted HTML will be several times the size of the source. ` +
+      `This is a heads-up, not a limit.`
+    : "";
+  warningLine.hidden = !isLarge;
+}
+
+sourceField.addEventListener("input", refreshSizeWarning);
+// Once at load as well: `input` does not fire for a textarea that arrives
+// already filled, which is how the popup opens from a right-click on a
+// selection.
+refreshSizeWarning();
 
 insertButton.addEventListener("click", async () => {
   insertButton.disabled = true;
