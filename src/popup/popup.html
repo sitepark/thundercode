@@ -20,7 +20,12 @@
       placeholder="Paste your code here"
     ></textarea>
     <p id="error" class="error" hidden></p>
-    <button id="insert" type="button">Insert</button>
+    <!--
+      The shortcut is named on the button because the popup is the only place
+      it is discoverable: Thunderbird's own shortcut list shows the binding for
+      opening this popup, never the one inside it.
+    -->
+    <button id="insert" type="button" title="Ctrl+Enter">Insert</button>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

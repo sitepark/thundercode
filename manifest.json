@@ -15,5 +15,13 @@
     "default_area": "formattoolbar",
     "default_popup": "src/popup/popup.html",
     "default_icon": "icons/thundercode.svg"
+  },
+  "commands": {
+    "_execute_compose_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C"
+      },
+      "description": "Insert code block"
+    }
   }
 }

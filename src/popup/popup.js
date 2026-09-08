@@ -46,7 +46,16 @@ async function insert() {
   }
 }
 
-insertButton.addEventListener("click", async () => {
+/**
+ * The one path from "confirm" to a closed popup, shared by the button and the
+ * keyboard. Both entry points have to behave identically, including the error
+ * branch — a shortcut that silently does nothing is worse than one that does
+ * not exist.
+ */
+async function confirmInsert() {
+  if (insertButton.disabled) {
+    return; // An insert is already in flight; a second Ctrl+Enter is a no-op.
+  }
   insertButton.disabled = true;
   errorLine.hidden = true;
   try {
@@ -57,4 +66,25 @@ insertButton.addEventListener("click", async () => {
     errorLine.hidden = false;
     insertButton.disabled = false;
   }
+}
+
+insertButton.addEventListener("click", confirmInsert);
+
+// Ctrl+Enter confirms, so paste-and-insert never needs the mouse. Bound on the
+// document rather than the textarea so it also works once focus has moved to
+// the button.
+//
+// `preventDefault` is load-bearing, not tidiness: the compose window binds
+// Ctrl+Enter to Send, and a chrome `<key>` still fires for a key press that
+// started inside an extension popup unless the popup consumes the event. Miss
+// this and the shortcut sends the message.
+//
+// `metaKey` is accepted alongside `ctrlKey` because on macOS the same gesture
+// is Cmd+Enter — the manifest's `Ctrl` is likewise read as Command there.
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) {
+    return;
+  }
+  event.preventDefault();
+  void confirmInsert();
 });
