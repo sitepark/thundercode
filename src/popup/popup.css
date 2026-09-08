@@ -1,3 +1,23 @@
+/*
+  The popup follows Thunderbird's light or dark appearance, and this one
+  declaration is nearly the whole of how.
+
+  Almost nothing in this file states a colour: the popup borrows the
+  platform's, which is why the textarea, the dropdown and the button look
+  native rather than approximately native. What that borrowing needs is
+  permission — a document that says nothing about `color-scheme` is a
+  light-only document, and Gecko keeps handing it the light `Canvas`,
+  `CanvasText` and widget colours however dark the window around it is. Saying
+  both are acceptable is what makes the same rules resolve to the dark set,
+  scrollbars and form controls included.
+
+  The two colours below that *are* stated cannot come along for free, so they
+  are stated twice, with `light-dark()`.
+*/
+:root {
+  color-scheme: light dark;
+}
+
 body {
   box-sizing: border-box;
   width: 32em;
@@ -61,6 +81,17 @@ select {
   margin: 0 0 1em;
   max-height: 18em;
   overflow: auto;
+  /*
+    The one surface here that does not follow Thunderbird's appearance, and
+    the reason is that the block does not either. It carries its own light
+    fill and its own text colour inline, because it is going into a message
+    and a message body is white — a dark preview would be showing the user
+    something no recipient will ever see. So the preview supplies the paper
+    the block will land on, and declares itself a light-scheme surface so that
+    its scrollbar belongs to the paper rather than to the popup.
+  */
+  color-scheme: light;
+  background-color: #ffffff;
 }
 
 /*
@@ -70,12 +101,19 @@ select {
 */
 .warning {
   margin: 0 0 1em;
-  color: #8a6100;
+  /*
+    Each pair is one colour at two lightnesses rather than two colours: the
+    dark-scheme value is the same hue lifted until it reads as clearly against
+    the dark canvas as the light one does against white (5.5:1 and 6.6:1
+    here). Picking it by eye is how a warning ends up shouting on one theme
+    and invisible on the other.
+  */
+  color: light-dark(#8a6100, #e8a33d);
 }
 
 .error {
   margin: 0 0 1em;
-  color: #b42318;
+  color: light-dark(#b42318, #ff8a80);
 }
 
 button {

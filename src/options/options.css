@@ -3,7 +3,17 @@
   the surrounding chrome. So: no width, no background, no card. Anything stated
   here that the pane also states is a thing that goes out of step the next time
   Thunderbird restyles that pane.
+
+  Which is why `color-scheme` is the exception and a background is not: it
+  takes the pane's appearance rather than stating one of its own. Without it
+  the page keeps rendering light inside a dark Thunderbird, because a document
+  silent about `color-scheme` is a light-only document however dark its
+  surroundings — and it is the pane's own number fields that come out wrong.
 */
+:root {
+  color-scheme: light dark;
+}
+
 body {
   margin: 0;
   padding: 1em;
@@ -29,19 +39,24 @@ input[type="number"] {
   width: 5em;
 }
 
+/*
+  Quieter than the labels, at both appearances. Each pair is one colour at two
+  lightnesses, sitting about as far off its own canvas as the other does off
+  its — a grey chosen for white paper is nearly invisible on a dark pane.
+*/
 .hint {
   margin: 0.25em 0 1.5em 7.5em;
-  color: #555;
+  color: light-dark(#555, #b1b1b3);
 }
 
 .status {
   margin: 0;
   min-height: 1.2em; /* Reserved, so saving does not shift the fields upward. */
-  color: #555;
+  color: light-dark(#555, #b1b1b3);
 }
 
-/* Same red as the popup's error line: a failed save is the one thing here
-   worth interrupting for. */
+/* Same red as the popup's error line, at both appearances: a failed save is
+   the one thing here worth interrupting for. */
 .status.failed {
-  color: #b42318;
+  color: light-dark(#b42318, #ff8a80);
 }

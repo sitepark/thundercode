@@ -13,6 +13,10 @@
 - [ ] **Hands-on:** the same, with a dark theme applied — the glyph should be light ink, as legible as Thunderbird's own buttons beside it
 - [ ] **Hands-on:** insert a block containing identifiers a dictionary would reject (`getEnv`, `usr`, `strlen`) and confirm no red underlines appear inside it, while a misspelling in the surrounding prose still gets one
 - [ ] **Hands-on:** the block's corners are rounded in the compose window and in the message as received
+- [x] The popup follows Thunderbird's light or dark appearance
+- [ ] **Hands-on:** with a dark theme, the popup's canvas, textarea, dropdown and button are dark, and the warning and error lines are legible
+- [ ] **Hands-on:** the preview still shows a light block on white paper under a dark theme, since that is what the recipient will see
+- [ ] **Hands-on:** the same for the options page in the Add-ons Manager
 
 ## Comments
 
@@ -52,3 +56,21 @@ Not reachable in the plain-text rendering, which has no markup to carry an attri
 `border-radius: 6px`, stated next to the border and the fill, which are already this block's own chrome rather than theme colours.
 
 Kept as a separate declaration from the border rather than folded into a shorthand, because a mail client may take one and not the other — Outlook's Word renderer ignores `border-radius` outright. That degradation is the square-cornered block this had yesterday, so nothing is lost where it is dropped.
+
+### Dark mode (`src/popup/popup.css`, `src/options/options.css`)
+
+Reported for the popup; the options page had the identical defect one click away, so it is fixed in the same change. Say if that should be split back out.
+
+Almost nothing in either file states a colour — that is deliberate, and it is why the textarea, the dropdown and the button look native rather than approximately native. What it needs is permission. A document silent about `color-scheme` is a light-only document, so Gecko keeps handing it the light `Canvas`, `CanvasText` and widget colours however dark the window around it is, which is the white rectangle that was reported. One declaration on `:root` fixes the whole of the borrowed part, scrollbars and form controls included:
+
+```
+:root { color-scheme: light dark; }
+```
+
+The colours the files do state cannot come along for free, so each is stated twice with `light-dark()` — the warning amber, the error red, and the options page's hint grey. Each pair is one hue at two lightnesses, picked so the dark value sits about as far off the dark canvas as the light value does off white (5.5:1 and 6.6:1 for the warning, 6.6:1 and 6.2:1 for the error). Picking the second value by eye is how a warning ends up shouting on one appearance and invisible on the other.
+
+**The preview is the one surface that does not follow.** It is now explicitly white, with its own `color-scheme: light`. The block carries its own light fill and text colour inline because it is going into a message and a message body is white; a preview that went dark with the popup would be showing the user something no recipient will ever see. Making it a light-scheme surface also puts its scrollbar on the paper rather than in the popup.
+
+The block itself stays light for the same reason, on every theme. A dark code block is a dark code block in the recipient's inbox too, and the seam has no idea what colour that inbox is.
+
+Verified by rendering both stylesheets headlessly under a forced dark scheme rather than by reasoning about them — canvas `#1c1b22`, controls dark, both message lines legible, the preview still white paper. `tests/styles.test.js` pins the rule going forward: `color-scheme` declared, and every `color:` in either file written as a `light-dark()` pair.
