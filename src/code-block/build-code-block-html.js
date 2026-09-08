@@ -49,8 +49,9 @@ const PLAINTEXT = "plaintext";
  * @param {object} options
  * @param {string} options.source Raw source text, as pasted.
  * @param {string} [options.language] Language to render as. `undefined` asks
- *   for auto-detection, which ticket 04 brings; until then it renders
- *   unhighlighted, and says so through `detectedLanguage`.
+ *   for auto-detection, and the language detection settled on comes back as
+ *   `detectedLanguage`. Naming a language skips detection entirely: an
+ *   override is an instruction, not a hint.
  * @param {Record<string, string>} [options.themeMap] Token class list to
  *   inline declaration string, keyed exactly as the class attribute is emitted
  *   (`"hljs-keyword"`, `"hljs-variable language_"`). Injected as data so the
@@ -85,7 +86,10 @@ export function buildCodeBlockHtml({
   const text = normaliseSource(source, resolveTabWidth(tabWidth));
   // Resolved once and used for both the rendering and the report, so the two
   // cannot disagree: what comes back is always the language that was applied.
-  const appliedLanguage = resolveLanguage(language);
+  // Detection runs on the normalised text and not on the paste, so a snippet
+  // is detected as the code it is rather than as the code plus whatever
+  // indentation and trailing whitespace its editor left on it.
+  const appliedLanguage = resolveLanguage(language, text);
 
   return {
     html:
@@ -113,18 +117,55 @@ export function buildCodeBlockHtml({
  * asked for.
  *
  * `hljs.highlight` throws on a language it has never been given, so an
- * unregistered name — a stale setting, a caller guessing at an alias the
- * bundle does not carry, ticket 04 one day handing back something odd — must
- * be caught here. It degrades to no highlighting, because a monochrome block
- * is a far better outcome than an exception where a code block should be.
+ * unregistered name — a stale setting, or a caller guessing at an alias the
+ * bundle does not carry — must be caught here. It degrades to no
+ * highlighting, because a monochrome block is a far better outcome than an
+ * exception where a code block should be.
  *
- * `undefined` lands in the same place today. That is the auto-detection
- * request the signature has always described, and ticket 04 is where it stops
- * meaning "no highlighting" and starts meaning `hljs.highlightAuto`. Nothing
- * here has to move for that: it is one more branch in this function.
+ * `undefined` is the auto-detection request the signature has always
+ * described, and this is where it stops meaning "no highlighting". It is the
+ * one branch ticket 03 said it would be, and detection lands in the same guard
+ * as an explicitly named language rather than beside it — one gate, so a
+ * detected name and a chosen name cannot be treated differently by accident.
  */
-function resolveLanguage(language) {
-  return language && hljs.getLanguage(language) ? language : PLAINTEXT;
+function resolveLanguage(language, text) {
+  const candidate = language === undefined ? detectLanguage(text) : language;
+
+  return candidate && hljs.getLanguage(candidate) ? candidate : PLAINTEXT;
+}
+
+/**
+ * The highlighter's own guess, or nothing.
+ *
+ * "Detection can only ever return a language present in the bundle" is
+ * guaranteed by construction rather than by a check here: `highlightAuto`
+ * scores the source against the languages `registerLanguage` was called with
+ * and reports the winner's registered name, so the result is by definition an
+ * entry of `listLanguages()` — which is the same list the popup builds its
+ * dropdown from, off the same module instance. There is no third list to keep
+ * in step with the other two.
+ *
+ * `language` comes back `undefined` when nothing beat plain text: the sort
+ * starts with a synthetic zero-relevance result that carries no language at
+ * all, and any grammar that also scores zero loses the tie to it. An empty
+ * paste guarantees it and a single word often produces it. The caller's
+ * `getLanguage` guard turns it into `plaintext` without having to know it can
+ * happen, which is why this function may return nothing rather than choosing a
+ * fallback of its own.
+ *
+ * There is no relevance floor above that. `highlightAuto` returns its best
+ * scorer however weakly it scored, so a two-word paste can come back as
+ * something surprising; a threshold was considered and rejected because
+ * highlight.js does not document its relevance numbers as comparable across
+ * grammars, so any floor would be a magic number pretending to be a judgement.
+ * A wrong guess costs one click at the dropdown, which is what it is for.
+ *
+ * `secondBest` is deliberately unread. Showing a runner-up would mean ranking
+ * two guesses in a UI whose whole point is that the common case needs no
+ * input.
+ */
+function detectLanguage(text) {
+  return hljs.highlightAuto(text).language;
 }
 
 /**

@@ -41,9 +41,10 @@
       registered. Empty in the markup for the same reason.
 
       It follows the textarea because that is the order of the work: paste
-      first, correct the language second. Ticket 04 adds an auto-detect entry
-      at the top and makes it the default; until something actually detects,
-      the honest default is the one that highlights nothing.
+      first, correct the language second — and after ticket 04 the second step
+      is usually not needed, because pasting moves this to the detected
+      language. There is no "auto-detect" entry: the point is to show what was
+      guessed, not to hide the guess behind a word that names no language.
     -->
     <label for="language">Language</label>
     <select id="language"></select>
