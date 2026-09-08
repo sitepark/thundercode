@@ -11,14 +11,14 @@ This ticket also settles the three behaviours that could not be verified from Th
 - [x] Manifest V3, minimum Thunderbird 128, named ThunderCode, with the Gecko extension id `thundercode@sitepark.com` set (Thunderbird refuses to install without an id)
 - [x] Installs as a temporary add-on with no manifest or console errors
 - [x] A button appears in the compose window's format toolbar and opens a popup
-- [ ] Pressing Insert places the hardcoded block at the cursor position, leaving the rest of the draft untouched
+- [x] Pressing Insert places the hardcoded block at the cursor position, leaving the rest of the draft untouched
 - [ ] The popup closes after inserting
 - [ ] With several compose windows open, the block lands in the one the button was invoked from
 - [ ] When no usable cursor position exists in the body, the block is appended at the end of the body rather than failing
 - [x] Requested permissions are limited to what is actually used
 - [x] **Finding recorded:** whether the compose editor's selection survives the popup taking focus. If it does not, a compose script that tracks the last valid range is implemented instead, and the popup messages it at insert time
 - [x] **Finding recorded:** whether inserting HTML through the editor's own insert action is reachable from the compose script sandbox. If it is, use it; if not, fall back to direct Selection/Range DOM insertion
-- [ ] **Finding recorded:** whether the insertion is undoable with Ctrl+Z, and whether Thunderbird considers the message modified afterwards (so closing the window warns about unsaved changes)
+- [x] **Finding recorded:** whether the insertion is undoable with Ctrl+Z, and whether Thunderbird considers the message modified afterwards (so closing the window warns about unsaved changes)
 
 ## Comments
 
@@ -128,8 +128,8 @@ That one line answers both, because of where in `insertIntoBody` it can be print
 
 **Finding 2 — positive. `execCommand("insertHTML")` is reachable from the compose-script sandbox**, and returned true. The block therefore goes in through `HTMLEditor::InsertHTMLAsAction` rather than through the Selection/Range fallback. Both paths stay, since the fallback is what catches a composer with no caret at all, but the preferred one is the one that runs.
 
-**Finding 3 — half settled, positively.** Closing the compose window after an insert warns about unsaved changes, so Thunderbird does consider the message modified by it: the block is a real edit and cannot be lost by closing a window that looks untouched. Whether Ctrl+Z removes it is not yet observed.
+**Finding 3 — positive on both halves.** Ctrl+Z removes the block, and closing the compose window afterwards warns about unsaved changes. So the insert goes through the transaction manager as a single undoable action, and Thunderbird counts it as a real edit — the block cannot be lost by closing a window that looks untouched, and a mis-paste costs one keystroke rather than a hand-cleanup of the message body.
 
-The original note on finding 3 follows.
+Which also confirms the mechanism from the other side. Direct DOM mutation would have bypassed the transaction manager and left Ctrl+Z with nothing to undo; that it undoes cleanly is what `HTMLEditor::InsertHTMLAsAction` does and the Selection/Range fallback does not. Finding 2 said the preferred path runs, and this is the behaviour that only the preferred path produces.
 
-**Finding 3 was open, and is now the only one still partly so.** `execCommand` routing to a real editor action is the reason to *expect* the insert to be undoable and the message to be marked modified, but neither has been observed. Two keystrokes settle it: press Ctrl+Z after inserting, then close the window and see whether it warns about unsaved changes.
+All three findings are settled, all three positively. Nothing later in the spec has to hedge against a negative: no `selectionchange` tracker, no compensation for a lost caret, no warning that the insert cannot be undone.
