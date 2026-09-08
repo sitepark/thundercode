@@ -1,0 +1,7 @@
+node_modules/
+
+# Packaged extension artifacts (see issue 12)
+*.xpi
+dist/
+
+.DS_Store

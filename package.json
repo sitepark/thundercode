@@ -1,0 +1,15 @@
+{
+  "name": "thundercode",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Thunderbird MailExtension for inserting syntax-highlighted code blocks into HTML mail",
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.0"
+  }
+}
