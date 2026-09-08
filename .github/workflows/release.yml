@@ -76,32 +76,23 @@ jobs:
             exit 1
           fi
 
-      # A release whose cycle contained only `chore`/`docs`/`ci` commits
-      # generates no section at all. Without this check that release would go
-      # out carrying the previous version's notes, because `--unreleased` falls
-      # back to the last release when the unreleased set is empty.
-      - name: Refuse to release a version the changelog does not describe
+      # The release body is the whole changelog: there is no CHANGELOG.md, so
+      # this is the only place a release is described.
+      #
+      # Empty output means every commit this cycle was an internal type. That
+      # is worth stopping for rather than publishing a blank body: an update
+      # reaches every installed copy, and one that says nothing about what
+      # changed is worse than not releasing. It runs before the tests because
+      # it is the cheapest check here.
+      - name: Build the release notes
         run: |
-          version='${{ steps.version.outputs.version }}'
-          if ! grep -qF "## [$version]" CHANGELOG.md; then
-            echo "CHANGELOG.md has no '## [$version]' section. Either nothing user-facing landed this cycle, or 'pnpm changelog:release' was not run." >&2
-            exit 1
-          fi
+          pnpm exec git-cliff --config cliff.toml \
+            --tag '${{ steps.version.outputs.version }}' \
+            --unreleased --strip all --output /tmp/release-notes.md
 
-      # Stronger than asking whether the section exists: it asks whether the
-      # committed file is what git-cliff produces from the history being
-      # released. That also catches what the old check could not, where a
-      # commit landed after the changelog was generated and never reached it.
-      - name: Refuse to release a changelog that is not what git-cliff generates
-        run: |
-          node scripts/changelog.mjs --release --output /tmp/expected.md
-
-          # The release date is the one thing allowed to differ. The changelog
-          # is committed when the release is prepared, which need not be the
-          # day the action is finally run.
-          norm() { sed -E 's/^(## \[[^]]+\]) - [0-9]{4}-[0-9]{2}-[0-9]{2}$/\1/' "$1"; }
-          if ! diff -u <(norm CHANGELOG.md) <(norm /tmp/expected.md); then
-            echo "CHANGELOG.md is stale. Run 'pnpm changelog:release' and commit it." >&2
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "Nothing since the last release reaches the notes; every commit this cycle was an internal type." >&2
+            echo "If something user-facing did land, it was committed under the wrong type." >&2
             exit 1
           fi
 
@@ -117,16 +108,6 @@ jobs:
         id: updates
         run: |
           echo "json=$(node scripts/build-updates-json.mjs '${{ steps.package.outputs.xpi }}')" >> "$GITHUB_OUTPUT"
-
-      # The release body is the changelog's own section for this version, so
-      # the release page and CHANGELOG.md say the same thing. GitHub's built-in
-      # note generation would instead list merged pull request titles, which
-      # describes the same work in a second, different vocabulary.
-      - name: Build the release notes
-        run: |
-          pnpm exec git-cliff --config cliff.toml \
-            --tag '${{ steps.version.outputs.version }}' \
-            --unreleased --strip all --output /tmp/release-notes.md
 
       - name: Publish
         uses: softprops/action-gh-release@v2

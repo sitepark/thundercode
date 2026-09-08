@@ -16,11 +16,12 @@ Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/
 
 ## Commit messages
 
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), because
-`CHANGELOG.md` is generated from them by git-cliff. `feat` and `fix` are the
-two types that reach the changelog, so their subjects are user-facing prose,
-not notes to the next reader of `git log`. See the Commit messages section of
-`README.md` for the type and scope list.
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). There
+is no `CHANGELOG.md`: the changelog is the GitHub release body, generated from
+these subjects by git-cliff at publish time. `feat` and `fix` are the two
+types that reach it, so their subjects are user-facing prose, not notes to the
+next reader of `git log`. See the Commit messages section of `README.md` for
+the type and scope list.
 
 ## Releasing
 

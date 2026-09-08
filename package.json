@@ -9,8 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "package": "bash scripts/package.sh",
-    "changelog": "node scripts/changelog.mjs",
-    "changelog:release": "node scripts/changelog.mjs --release"
+    "changelog": "git-cliff --unreleased --strip all"
   },
   "devDependencies": {
     "git-cliff": "^2.13.1",

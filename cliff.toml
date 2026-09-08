@@ -1,44 +1,21 @@
 # git-cliff configuration for ThunderCode.
 #
-# The changelog is generated from Conventional Commit subjects, so what lands
-# in it is decided when a commit is written, not at release time. A commit that
-# names no type is dropped rather than guessed at — see `filter_commits` below.
+# There is no CHANGELOG.md. The changelog is the body of the GitHub release,
+# generated from Conventional Commit subjects at publish time, so the only
+# place a release is described is the page people actually read.
 #
-# Output is Keep a Changelog: the group names are its section headings, and the
-# footer rebuilds every compare link from the tags git actually has, which is
-# the bookkeeping that used to be done by hand and silently went stale.
+# That means this config only ever renders one release: the commits since the
+# last tag. It is always invoked with `--strip all`, so a header and footer
+# would be dead weight and there are none.
 
 [changelog]
-header = """
-# Changelog
-
-All notable changes to this project are documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-"""
-
-body = """{% if version %}## [{{ version }}] - {{ timestamp | date(format="%Y-%m-%d") }}{% else %}## [Unreleased]{% endif %}
-{% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | striptags | trim | upper_first }}
+body = """{% for group, commits in commits | group_by(attribute="group") %}### {{ group | striptags | trim | upper_first }}
 
 {% for commit in commits %}- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}
-{% endfor %}{% endfor %}
-"""
-
-footer = """{% for release in releases -%}
-{% if release.version -%}
-{% if release.previous and release.previous.version -%}
-[{{ release.version }}]: https://github.com/sitepark/thundercode/compare/{{ release.previous.version }}...{{ release.version }}
-{% else -%}
-[{{ release.version }}]: https://github.com/sitepark/thundercode/releases/tag/{{ release.version }}
-{% endif -%}
-{% else -%}
-[unreleased]: https://github.com/sitepark/thundercode/compare/{{ release.previous.version }}...HEAD
-{% endif -%}
+{% endfor %}
 {% endfor %}"""
 
-trim = false
+trim = true
 
 [git]
 conventional_commits = true
@@ -57,7 +34,11 @@ sort_commits = "oldest"
 # Bare versions, no `v` prefix: the tag is the value of `manifest.json`'s
 # `version` field and nothing else, because the release workflow compares the
 # two literally.
-tag_pattern = "[0-9]*"
+#
+# Anchored, and a regex rather than a glob. `[0-9]*` looks like the same thing
+# and is not: as a regex it matches the empty string, so it matches every tag
+# in the repository, and any stray tag then outranks the real ones.
+tag_pattern = "^[0-9]+\\.[0-9]+\\.[0-9]+$"
 
 commit_parsers = [
   { message = "^Merge", skip = true },
@@ -67,8 +48,8 @@ commit_parsers = [
   { message = "^perf", group = "<!-- 2 -->Changed" },
   { message = "^revert", group = "<!-- 3 -->Removed" },
   # Internal-only types. They are required on the commit and absent from the
-  # changelog: a reader of this file is looking for what the add-on now does,
-  # not for how the repo is maintained.
+  # release notes: someone reading them wants to know what the add-on now
+  # does, not how the repo is maintained.
   { message = "^docs", skip = true },
   { message = "^test", skip = true },
   { message = "^chore", skip = true },

@@ -67,51 +67,60 @@ compose window is checked by hand against `docs/release-checklist.md`.
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
-`type(scope): subject`. `CHANGELOG.md` is generated from these by git-cliff
-(`cliff.toml`), so the subject is not a note to the next reader of `git log` —
-it is the sentence a user reads about the release.
+`type(scope): subject`. There is no `CHANGELOG.md`; the changelog is the body
+of the GitHub release, generated from these subjects by git-cliff
+(`cliff.toml`) when the release is published. So a subject is not a note to
+the next reader of `git log` — it is the sentence a user reads about the
+release, and the only one there is.
 
-Two types reach the changelog:
+Two types reach the notes:
 
 - `feat` — an **Added** entry.
 - `fix` — a **Fixed** entry.
 
 `refactor` and `perf` become **Changed**, `revert` becomes **Removed**, and
 `docs`, `test`, `chore`, `ci`, `build` and `style` are required on the commit
-but deliberately absent from the file: someone reading it wants to know what
-the add-on now does, not how the repo is maintained.
+but deliberately absent from the notes: someone reading them wants to know
+what the add-on now does, not how the repo is maintained.
 
 Scopes in use: `compose`, `code-block`, `popup`, `options`, `ui`, `release`.
 
-A commit with no type is dropped from the changelog entirely rather than
-guessed at. That is meant to be caught in review — silently listing it under
-the wrong heading would be worse. Merge commits are skipped for the same
-reason and keep their default subjects.
+A commit with no type is dropped entirely rather than guessed at. That is
+meant to be caught in review — silently listing it under the wrong heading
+would be worse. Merge commits are skipped for the same reason and keep their
+default subjects.
 
-Run `pnpm changelog` at any point to see what the next release will say.
+Run `pnpm changelog` at any point to see what the next release will say. If a
+cycle produces nothing, the release is refused rather than published with an
+empty body; see below.
+
+Because the notes are written at publish time from the commits themselves,
+there is nothing to prepare and nothing that can go stale. Fixing a bad
+changelog line means amending the commit, not editing a file.
 
 ## Releasing
 
 The version in `manifest.json` is what gets released; the workflow never
 chooses it. Releasing is running an action, not pushing a tag.
 
-1. `pnpm changelog:release`. This stamps the unreleased commits with the
-   version in `manifest.json` and today's date, and rebuilds the compare links
-   at the bottom. Read what came out: git-cliff writes the entries from commit
-   subjects, so a vague subject is a vague changelog line, and the fix is to
-   amend the commit rather than to edit `CHANGELOG.md` — the next regeneration
-   discards anything typed in by hand.
-2. Commit that to `main`, and run `docs/release-checklist.md` — the action
-   publishes immediately, so this is the last point at which nothing has
-   shipped.
+1. `pnpm changelog` and read it. This is the release body, and the last
+   chance to fix a vague line by amending the commit it came from.
+2. Run `docs/release-checklist.md` — the action publishes immediately, so this
+   is the last point at which nothing has shipped.
 3. **Actions ▸ Release ▸ Run workflow**, on `main`. Leave the bump at `minor`
    unless the next cycle is a patch or a major.
 
 The workflow refuses to start unless it is on `main`, the version is not
-already tagged, and `CHANGELOG.md` has a section for it. It then runs the
-tests, builds the archive, generates `updates.json` from the manifest and the
-archive's digest, publishes both under a tag it creates itself, and finally
-raises `manifest.json` to the next version and pushes that to `main`.
+already tagged, and the generated notes are not empty. It then runs the tests,
+builds the archive, generates `updates.json` from the manifest and the
+archive's digest, publishes both under a tag it creates itself with the notes
+as the release body, and finally raises `manifest.json` to the next version
+and pushes that to `main`.
+
+Empty notes mean every commit in the cycle was an internal type, so the
+release is refused. An update reaches every installed copy, and one that says
+nothing about what changed is worse than not releasing at all. If something
+user-facing did land, it was committed under the wrong type.
 
 So `main` always sits on an unreleased version, and every tag names a commit
 where the manifest agreed with it. The bump comes last on purpose: if anything
