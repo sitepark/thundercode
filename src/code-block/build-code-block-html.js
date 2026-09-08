@@ -2,7 +2,8 @@ const DEFAULT_FONT_SIZE = 13;
 const DEFAULT_TAB_WIDTH = 4;
 
 /**
- * Turns pasted source into the HTML that gets inserted into the message.
+ * Turns pasted source into the code block that gets inserted into the
+ * message, in both the renderings a compose window can take.
  *
  * This is the seam the whole feature is tested through. Everything behind it
  * is an internal: nothing else in this module is exported, and tests drive
@@ -25,9 +26,11 @@ const DEFAULT_TAB_WIDTH = 4;
  * @param {number} [options.tabWidth] Spaces a tab expands to. Defaults to 4;
  *   ticket 10 makes it a setting.
  * @param {number} [options.fontSize] Block font size in px.
- * @returns {{ html: string, detectedLanguage: string }} `detectedLanguage` is
- *   the language the block was actually rendered with, which the popup shows
- *   back to the user.
+ * @returns {{ html: string, text: string, detectedLanguage: string }} The same
+ *   block in the two renderings a composer can take — `html` for an HTML
+ *   compose window, `text` for a plain-text one (ticket 09) — plus
+ *   `detectedLanguage`, the language the block was actually rendered with,
+ *   which the popup shows back to the user.
  */
 export function buildCodeBlockHtml({
   source,
@@ -40,10 +43,16 @@ export function buildCodeBlockHtml({
   // from ticket 03 — before highlighting. A highlighter tokenising the raw
   // paste would attach spans to whitespace that is about to be removed, so
   // the order is load-bearing rather than incidental.
-  const text = escapeHtml(normaliseSource(source, resolveTabWidth(tabWidth)));
+  const text = normaliseSource(source, resolveTabWidth(tabWidth));
 
   return {
-    html: `<pre style="${preStyle(fontSize)}">${text}</pre>`,
+    html: `<pre style="${preStyle(fontSize)}">${escapeHtml(text)}</pre>`,
+    // The normalised source itself, for the plain-text composer that has no
+    // markup to take. It is returned rather than left internal because the
+    // alternative is a second copy of the four transforms outside this module,
+    // and two copies drift. Ticket 03 must keep this the *unhighlighted* text:
+    // highlighting is a property of the HTML rendering only.
+    text,
     // No highlighter yet, so plaintext is what rendered regardless of what was
     // asked for. Reporting back the requested language would be a claim the
     // output does not support. Ticket 03 makes this the language applied.

@@ -145,6 +145,61 @@ describe("buildCodeBlockHtml", () => {
     });
   });
 
+  /**
+   * A plain-text compose window has no markup to take, so the seam returns the
+   * same block a second way: the normalised source itself. It is returned
+   * rather than recomputed by the caller because the alternative is a second
+   * copy of the four transforms, and two copies of that drift.
+   */
+  describe("the plain-text rendering it returns alongside the html", () => {
+    it("is the normalised source, not the raw paste", () => {
+      const { text } = buildCodeBlockHtml({
+        source: "\n\tif x:\n\t\treturn 1  \n\n",
+      });
+
+      expect(text).toBe("if x:\n    return 1");
+    });
+
+    /**
+     * The whole point of the plain-text path: what a mailing list has done
+     * with code for decades only works if the indentation is still there.
+     */
+    it("keeps relative indentation", () => {
+      const { text } = buildCodeBlockHtml({
+        source: "    def f():\n        if x:\n            return 1",
+      });
+
+      expect(text).toBe("def f():\n    if x:\n        return 1");
+    });
+
+    /**
+     * The two renderings are the same code, escaped and not. Escaping the
+     * plain-text one would put a literal `&lt;` in the message, which is the
+     * failure this pins.
+     */
+    it("carries the source's real characters, with no escaping", () => {
+      const source = "if (a < b && c > d) return '<x>';";
+
+      const { html, text } = buildCodeBlockHtml({ source });
+
+      expect(text).toBe(source);
+      expect(preContent(html)).toBe(
+        "if (a &lt; b &amp;&amp; c &gt; d) return '&lt;x&gt;';",
+      );
+    });
+
+    it("carries no markup, styling or wrapper of its own", () => {
+      const { text } = buildCodeBlockHtml({ source: "print(1)" });
+
+      expect(text).toBe("print(1)");
+    });
+
+    it("is empty when the source normalises away to nothing", () => {
+      expect(buildCodeBlockHtml({ source: "" }).text).toBe("");
+      expect(buildCodeBlockHtml({ source: "\n \n\t\n" }).text).toBe("");
+    });
+  });
+
   describe("the block's own styling", () => {
     it("uses a monospace stack ending in the generic keyword", () => {
       const style = preStyle(buildCodeBlockHtml({ source: "x" }).html);

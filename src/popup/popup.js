@@ -26,22 +26,35 @@ async function findComposeTab() {
 
 async function insert() {
   const tab = await findComposeTab();
-  const { html } = buildCodeBlockHtml({ source: sourceField.value });
+  // Which of the two blocks this composer can take is a property of the
+  // window, not a choice: the compose format of an open window cannot be
+  // changed, and `setComposeDetails` ignores `isPlainText`. So we ask and
+  // adapt rather than offering to switch, and the button works either way.
+  const { isPlainText } = await browser.compose.getComposeDetails(tab.id);
+  const { html, text } = buildCodeBlockHtml({ source: sourceField.value });
 
-  // Set before the block goes in, never after. The default `"auto"` sends an
-  // HTML message as plain text when it sees no formatting, which would drop
-  // the block entirely; `"both"` also guarantees the plain-text alternative
-  // part. Doing it first means a failure here costs an insert rather than
-  // leaving an already-inserted block on a message that will downgrade it.
-  //
-  // Only `deliveryFormat` is passed: `setComposeDetails` rewrites the whole
-  // body when handed one, which would move the caret and destroy undo.
-  await browser.compose.setComposeDetails(tab.id, { deliveryFormat: "both" });
+  if (!isPlainText) {
+    // Set before the block goes in, never after. The default `"auto"` sends an
+    // HTML message as plain text when it sees no formatting, which would drop
+    // the block entirely; `"both"` also guarantees the plain-text alternative
+    // part. Doing it first means a failure here costs an insert rather than
+    // leaving an already-inserted block on a message that will downgrade it.
+    //
+    // Only `deliveryFormat` is passed: `setComposeDetails` rewrites the whole
+    // body when handed one, which would move the caret and destroy undo.
+    await browser.compose.setComposeDetails(tab.id, { deliveryFormat: "both" });
+  }
+  // A plain-text message is skipped deliberately: `deliveryFormat` describes
+  // how an HTML message is put on the wire, and there is no HTML part here to
+  // downgrade. Ticket 02 predicted this call would be rejected on a plain-text
+  // composer, which the popup would then surface as an error while inserting
+  // nothing — the button looking broken in exactly the window this ticket is
+  // about. Not making the call is both the fix and the honest description.
 
   const [injection] = await browser.scripting.executeScript({
     target: { tabId: tab.id },
     func: insertIntoBody,
-    args: [html],
+    args: [{ content: isPlainText ? text : html, isPlainText }],
   });
   if (injection.error) {
     throw injection.error;
