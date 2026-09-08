@@ -6,9 +6,21 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <p class="lead">Inserts a fixed example code block at the cursor.</p>
+    <!--
+      Autofocused so that pasting is a single keystroke with no clicking
+      first. The clipboard is never read from here: auto-filling this field
+      would surface whatever the user last copied, and reading it would need a
+      permission the extension otherwise does without.
+    -->
+    <textarea
+      id="source"
+      rows="12"
+      autofocus
+      spellcheck="false"
+      placeholder="Paste your code here"
+    ></textarea>
     <p id="error" class="error" hidden></p>
-    <button id="insert" type="button" autofocus>Insert</button>
+    <button id="insert" type="button">Insert</button>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

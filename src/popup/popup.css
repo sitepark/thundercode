@@ -1,13 +1,23 @@
 body {
   box-sizing: border-box;
-  width: 22em;
+  width: 32em;
   margin: 0;
   padding: 1em;
   font: menu;
 }
 
-.lead {
+textarea {
+  box-sizing: border-box;
+  width: 100%;
   margin: 0 0 1em;
+  /*
+    Monospaced so that pasted indentation is readable while it sits here. This
+    is a paste target, not a preview of the block — ticket 06 brings the
+    preview, and duplicating the block's exact type here would only give
+    ticket 10 two font sizes to keep in step.
+  */
+  font-family: monospace;
+  white-space: pre-wrap;
 }
 
 .error {
