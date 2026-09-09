@@ -1,0 +1,49 @@
+# Dependency updates, opened as pull requests so the Test workflow runs on them
+# before anything is merged. Nothing here updates the add-on's shipped code:
+# every npm dependency is a dev dependency, and `vendor/` is maintained by hand.
+version: 2
+
+updates:
+  # The two workflows in .github/workflows pin actions by major tag (@v4, @v2),
+  # which does not pick up a pinned-tag move on its own. Grouped into one pull
+  # request: these are all first-party or widely used actions, and reviewing
+  # four separate bumps of a CI file is worse than reviewing one.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      # `ci` per the type list in README.md's Commit messages section. Absent
+      # from the release notes by design, which is right for these.
+      prefix: ci
+
+  # pnpm, read from pnpm-lock.yaml (lockfileVersion 9.0).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      # Deliberately not updated here. The npm package is a dev dependency
+      # pinned to an exact version purely to record provenance; the code that
+      # actually ships is the hand-modified copy under vendor/highlight.js,
+      # which a lockfile bump does not touch. Worse, nothing fails: the test
+      # suite imports vendor/ directly, so such a pull request would pass while
+      # leaving the pin and the vendored files a version apart — the exact
+      # drift the exact pin exists to prevent.
+      #
+      # Bump it by working through the re-vendoring checklist in
+      # vendor/highlight.js/PROVENANCE.md, by hand, in one commit.
+      - dependency-name: highlight.js
+    commit-message:
+      # `build` per README.md's type list.
+      prefix: build
