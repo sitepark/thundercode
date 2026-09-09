@@ -177,16 +177,26 @@ override below exists.
 | `THUNDERBIRD_HEADLESS=0` | Give the application a display. Run the command under `xvfb-run` and it stays unattended; this is the fallback for the things headless Thunderbird has been known to get wrong. |
 | `THUNDERBIRD_TIER_DEBUG=1` | geckodriver's trace log, on the terminal. |
 
+What it asserts is what the add-on does: a snippet typed into the popup and a
+block coming out in the message body, through the toolbar button, through the
+shortcut, through a right-click and into a plain-text composer, with the
+insertion function's own report of which path it took read back off the
+console. That is `tests/thunderbird/insertion.test.js`, and every assertion in
+it used to be a line on the release checklist.
+
 The harness itself is `tests/thunderbird/harness/`, and its interface is
-documented in `tests/thunderbird/harness/index.js` - including two limits found
-while building it, which are worth reading before writing a test that runs into
-them: the add-on's popup cannot be read from outside once it is open, and a
-letter-key shortcut cannot be delivered to Thunderbird 128 by synthesised
-input.
+documented in `tests/thunderbird/harness/index.js` - including four limits
+found while building it, which are worth reading before writing a test that
+runs into them. The popup's document cannot be read from outside; the popup has
+to be handed the keyboard before it hears anything, and a test that forgets can
+pass while asserting nothing; a letter-key shortcut cannot be delivered to
+Thunderbird 128 by synthesised input; and the popup cannot be opened in a
+plain-text composer at all, which is a defect in the add-on rather than a limit
+of the harness.
 
 What is still checked by hand is anything that is a claim about Thunderbird
 rather than about this project's own logic; that list is
-`docs/release-checklist.md`.
+`docs/release-checklist.md`, which now starts by running the two commands above.
 
 ## Commit messages
 
