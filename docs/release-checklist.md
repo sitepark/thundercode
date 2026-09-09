@@ -1,8 +1,13 @@
 # Release checklist
 
-`pnpm test` covers the manifest, the update manifest, the HTML builder and the
-settings. It cannot open a compose window, so everything the add-on actually
-*does* is unverified until someone does it. This file is that someone's list.
+The suite can open a compose window now. What it cannot do is look at one, so
+this file is what is left: claims about Thunderbird, claims about what
+something looks like, and one section of claims about the release itself that
+only exist after it has been published. Everything that was a claim about this
+add-on's own logic has moved into the tests, and the first section lists what
+that took with it - not as items to work through, but so that a failure there
+is recognisable as a checklist item failing rather than as a test being
+fussy.
 
 Run it before every tag, on **both** supported Thunderbird versions:
 
@@ -14,14 +19,62 @@ Run it before every tag, on **both** supported Thunderbird versions:
 Record the result in the GitHub release description, or in the pull request if
 the release is being prepared on a branch.
 
+## What the tests cover
+
+- [ ] `pnpm test` passes.
+- [ ] `pnpm test:thunderbird` passes. It drives the pinned 128 ESR, which it
+      fetches itself, so this is the floor version of the two runs above.
+- [ ] `THUNDERBIRD_BINARY=/path/to/thunderbird pnpm test:thunderbird` passes
+      against the current release. Same suite, the maintainer's own install;
+      the README says what the variable does.
+
+Three commands, and they stand in for the following, each of which was an item
+on this list and is now an assertion in `tests/thunderbird/insertion.test.js`
+unless another file is named:
+
+- A block landing at the caret in an empty HTML composer, through the toolbar
+  button.
+- The same insert with the caret mid-paragraph, leaving the text on both sides
+  of it intact - and source with nothing to highlight not throwing on the way.
+- A selection right-clicked, arriving in the popup, and replaced rather than
+  duplicated.
+- The insert going through the editor command rather than a DOM fallback, which
+  is the path that runs in production, and one `Ctrl+Z` taking it out again.
+- `&`, `<`, `>` and `"` in the source reaching the message as those characters.
+- The popup closing when the insert lands.
+- A plain-text composer receiving the source as text with no markup in it.
+  The test unhides the format toolbar to get there, because as things stand the
+  popup cannot be opened in a plain-text composer at all - issue #12. What is
+  covered is the insert; what is broken is reaching it.
+- The shortcut inserting exactly what the button inserts, and the manifest's
+  `Ctrl+Shift+C` having become the key element Thunderbird derives from it.
+  **Delivering that key press is not covered** - see the first item under
+  Insertion.
+- `pnpm run package` producing `dist/thundercode-<version>.xpi` with the
+  manifest's version in its name, in `compose-window.test.js`: the tier
+  installs that archive, so every run builds it.
+- The live preview updating as the source changes, and the large-snippet
+  warning appearing past the threshold and not below it, in
+  `tests/dom/popup.test.js` and `tests/node/snippet-size.test.js`. Both are
+  claims about this add-on's own arithmetic rather than about Thunderbird,
+  which is what made them safe to stop looking at.
+- Correcting the detected language and the preview following it, in
+  `tests/dom/popup.test.js`.
+- The update manifest being keyed by the id this add-on's manifest declares,
+  in `tests/node/updates.test.js`. That was the "Update manifest did not
+  contain an entry for …" line to look for in the Error Console after an
+  update check, which is the only symptom a mismatch has - and it is a claim
+  about a file this repo generates rather than about Thunderbird reading it.
+
 ## Insertion
 
-- [ ] Insert a block at the caret in an empty HTML compose window.
-- [ ] Insert a block with the caret mid-paragraph; surrounding text is intact.
-- [ ] Select existing text in the compose window, right-click, insert as a code
-      block; the selection is replaced, not duplicated.
-- [ ] `Ctrl+Shift+C` opens the popup.
-- [ ] Undo (`Ctrl+Z`) reverses the insert in one step.
+- [ ] `Ctrl+Shift+C` opens the popup, pressed on a real keyboard in an HTML
+      composer. The tier drives the `key` element Thunderbird built from the
+      manifest and asserts that opening the popup that way inserts identically
+      to the button, but it cannot press the key: a letter-key shortcut is
+      matched on keypress, and synthesised input produces none. So what is left
+      here is exactly the delivery, which is Thunderbird's half of that
+      shortcut.
 - [ ] No red spell-check underlines anywhere in an inserted block, and prose
       typed above and below it is still checked. The block relies on the
       `moz-forward-container` wrapper for this, which is Thunderbird's own
@@ -30,55 +83,45 @@ the release is being prepared on a branch.
 - [ ] Attaching a file with Filelink while a block sits above a forwarded
       message still puts the cloud links in a sensible place. This is the known
       cost of that wrapper; it is a nuisance, not a failure.
-- [ ] The message is marked modified after an insert (closing prompts to save).
-
-## Highlighting
-
-- [ ] Paste source in a language with a distinctive shape (Python, SQL); the
-      detected language is right and the block is coloured.
-- [ ] Override the detected language in the popup; the preview follows.
-- [ ] Paste plain prose; the plaintext fallback does not throw.
-- [ ] Source containing `&`, `<`, `>` and `"` renders as those characters
-      rather than as entities or markup.
-
-## Popup
-
-- [ ] The live preview updates as the source changes.
-- [ ] The large-snippet warning appears above the threshold and not below it.
-- [ ] Inserting closes the popup.
-
-## Options
-
-- [ ] Open the options pane from the Add-ons Manager; it is embedded, not a tab.
-- [ ] Change the theme; a newly inserted block uses it.
-- [ ] Settings survive a Thunderbird restart.
+- [ ] The message is marked modified after an insert, so closing the composer
+      prompts to save. The tier reads the editor's modification count; that
+      Thunderbird then puts up the prompt is the part with a dialog in it.
 
 ## Appearance
 
 - [ ] The toolbar button is visible in the format toolbar on a light theme.
 - [ ] The toolbar button is visible on a dark theme (not dark ink on dark).
 - [ ] An inserted block reads correctly in both themes.
+- [ ] Paste source in a language with a distinctive shape (Python, SQL), then
+      paste plain prose: the code is coloured in the composer and the prose is
+      not. That the right language is detected, and that the colours are in the
+      markup at all, is `tests/node/code-block.test.js`. That they survive into
+      a message body and read as code is this.
 
-## Plain-text composers
+## Options
 
-- [ ] Open a plain-text compose window; the add-on degrades as intended rather
-      than inserting broken markup.
+- [ ] Open the options pane from the Add-ons Manager; it is embedded, not a tab.
+- [ ] Change the theme; a newly inserted block uses it. The theme is read out of
+      the stylesheet through Thunderbird's own CSS parser, which is the one
+      thing a simulated document is least faithful about - see the comment at
+      the top of `src/popup/theme-map.js`.
+- [ ] Settings survive a Thunderbird restart.
 
 ## Packaging
 
-- [ ] `pnpm run package` succeeds and `dist/thundercode-<version>.xpi` has the
-      version from `manifest.json` in its name.
-- [ ] Install that archive from file into a clean profile and repeat one
-      insertion - this is the path users take, and it is not the path
-      `about:debugging` exercises.
+- [ ] Install `dist/thundercode-<version>.xpi` from file into a clean profile
+      and repeat one insertion - this is the path users take, and it is not the
+      path a temporary install exercises.
 - [ ] The Add-ons Manager shows the ThunderCode icon, not a puzzle piece.
-- [ ] Run Thunderbird's reviewer linter once against the archive:
-      clone <https://github.com/thunderbird/webext-linter> and
-      `node verify.js dist/thundercode-<version>.xpi`. Warnings about unknown
-      `messenger.*` APIs and mail permissions are expected noise - the linter
-      does not know Thunderbird's own surface. Anything else is worth reading.
 
-## Updates
+## After publishing
+
+The one section here that is not about Thunderbird, said out loud rather than
+filed as though it were. These are claims about GitHub and about this repo's
+own release workflow, and the reason they survive the split is not that a test
+could not make them - it is that there is nothing to make them against until
+the workflow has run and published something. A person looking at the release
+that just went out is the only thing that can see them.
 
 - [ ] The published release is **not** a draft and **not** a prerelease. The
       workflow sets both false, so this is a check that nobody edited the
@@ -88,15 +131,20 @@ the release is being prepared on a branch.
 - [ ] `main` now holds the *next* version, pushed by the workflow's bump
       commit. If it still holds the released one, the bump step failed and the
       next release will refuse to start.
-- [ ] `updates.json` is attached to the release alongside the `.xpi`, and
-      <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
-      returns it.
+- [ ] <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
+      returns the new version. What that URL *says* is pinned by
+      `tests/node/updates.test.js`, and that the file builds at all is checked
+      on every push by the test workflow; what neither can see is whether the
+      release carries it. That URL is baked into every installed copy, so a
+      release published without the asset leaves all of them polling a 404 and
+      never hearing about the update.
 
-The rest is only meaningful once a previous release exists.
+## Updating an installed copy
+
+Thunderbird's half of an update - the daily check, the download and the
+install - against a real one. Only meaningful once a previous release exists.
 
 - [ ] Set `extensions.logging.enabled` to `true` in the config editor first;
       update failures are otherwise completely silent.
 - [ ] With the previous version installed, force a check from the Add-ons
       Manager gear menu and confirm it upgrades to the new one.
-- [ ] The Error Console shows no "Update manifest did not contain an entry for
-      …" line.

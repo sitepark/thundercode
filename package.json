@@ -5,17 +5,25 @@
   "description": "Thunderbird MailExtension for inserting syntax-highlighted code blocks into HTML mail",
   "type": "module",
   "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --project node --project dom",
+    "test:node": "vitest run --project node",
+    "test:thunderbird": "vitest run --project thunderbird",
+    "test:watch": "vitest --project node --project dom",
+    "coverage": "vitest run --project node --project dom --coverage",
     "package": "bash scripts/package.sh",
     "lint": "bash scripts/lint.sh",
     "changelog": "git-cliff --unreleased --strip all"
   },
   "devDependencies": {
-    "addons-linter": "^10.10.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "git-cliff": "^2.13.1",
     "highlight.js": "11.12.0",
+    "jsdom": "^30.0.1",
+    "selenium-webdriver": "^4.48.0",
     "vitest": "^5.0.0"
   }
 }

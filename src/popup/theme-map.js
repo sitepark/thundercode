@@ -10,11 +10,20 @@ import { CONTAINER_CLASS } from "../code-block/build-code-block-html.js";
  * the browser's own CSS parser: this module only walks the already-parsed
  * CSSOM. No regex over the file, no colour table.
  *
- * This is popup-side code and is deliberately not unit tested. It needs a
- * browser to do anything at all, the test runner has no DOM by design, and its
- * failure mode is visible the instant a block comes out monochrome. That
- * division is the point of the seam: the pipeline is pure and tested, and the
- * one thing that cannot be is this file.
+ * Deliberately not unit tested, and for a narrower reason than this comment
+ * used to give. There is a simulated document in the suite now, so "the runner
+ * has no DOM" no longer says anything about this file. What is still true is
+ * that the claim the module is built around - that the CSS parser expands a
+ * shorthand into its longhands while parsing into the object model, so the
+ * accessors below see a value the theme's author never wrote out - is exactly
+ * where a simulated object model is least faithful. Reading one property back
+ * would carry across; the expansion would not, and a test that passed on it
+ * would be pinning the fake's behaviour and calling it the platform's.
+ *
+ * The gap is affordable rather than merely admitted. The pipeline that consumes
+ * this map is pure and pinned, a stylesheet that yields nothing costs the
+ * colour and nothing else, and the failure mode is visible the instant a block
+ * comes out monochrome.
  */
 
 /**

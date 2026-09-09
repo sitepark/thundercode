@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nextVersion } from "../scripts/bump-version.mjs";
+import { nextVersion } from "../../scripts/bump-version.mjs";
 
 /**
  * The release workflow calls this and pushes the result to `main`, unreviewed.

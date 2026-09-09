@@ -1,19 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CODE_BLOCK_DEFAULTS } from "../src/code-block/build-code-block-html.js";
+import { CODE_BLOCK_DEFAULTS } from "../../src/code-block/build-code-block-html.js";
 import {
   SETTING_FIELDS,
   coerceSettings,
   readSettings,
   writeSettings,
-} from "../src/settings/settings.js";
+} from "../../src/settings/settings.js";
+import { installBrowserFake } from "../helpers/browser-fake.js";
 
 /**
- * The options page is verified by hand, like the popup - the runner has no DOM
- * and is meant not to. What is testable, and is the whole of the ticket's
- * "invalid or empty values fall back to the defaults rather than producing a
- * broken block", is the coercion between storage and the seam. It is a pure
- * function precisely so that this file can exist.
+ * The coercion between storage and the seam, which is the whole of the
+ * ticket's "invalid or empty values fall back to the defaults rather than
+ * producing a broken block". It is a pure function precisely so that this file
+ * can exist: the rules are arithmetic and need no document, so they are pinned
+ * here rather than through the page that shows them off.
+ *
+ * This file used to say that the options page was verified by hand because the
+ * runner had no DOM. The DOM was never the whole reason and it is no longer the
+ * situation: what the page does with these answers - saying out loud that a
+ * value was corrected, rather than letting a field change quietly under a
+ * "Saved." - is pinned in tests/dom/options.test.js. The division now is that
+ * the numbers are decided here and shown there.
  *
  * The expected numbers are read from `CODE_BLOCK_DEFAULTS` and `SETTING_FIELDS`
  * rather than written out, so that retuning a default stays a one-line change
@@ -175,39 +183,23 @@ describe("coerceSettings", () => {
  * this file's stub works. What it records is which area was called, with what,
  * and what the caller did with the answer, and each of those is a decision the
  * module actually makes.
+ *
+ * The stub these tests used to write by hand is now
+ * tests/helpers/browser-fake.js, which generalises it: `storage.sync` is still
+ * present and still throws, and so does everything else this module has not
+ * been given, so a settings module that started calling a second API would
+ * fail here rather than quietly work.
  */
 describe("the settings store", () => {
-  /**
-   * The area the spec rules out. Left in the stub rather than omitted, and
-   * throwing rather than recording, so that "settings follow the profile
-   * around" cannot be introduced quietly by someone who thinks it is an
-   * improvement: every test in here fails at once instead.
-   */
-  const sync = {
-    get: () => {
-      throw new Error("storage.sync is ruled out by the spec");
-    },
-    set: () => {
-      throw new Error("storage.sync is ruled out by the spec");
-    },
-  };
-
-  let calls;
+  let fake;
 
   beforeEach(() => {
-    calls = { get: [], set: [] };
-    vi.stubGlobal("browser", {
+    fake = installBrowserFake({
       storage: {
         local: {
-          get: async (names) => {
-            calls.get.push(names);
-            return { tabWidth: 8, fontSize: 11 };
-          },
-          set: async (values) => {
-            calls.set.push(values);
-          },
+          get: async () => ({ tabWidth: 8, fontSize: 11 }),
+          set: async () => {},
         },
-        sync,
       },
     });
   });
@@ -218,7 +210,9 @@ describe("the settings store", () => {
 
   it("reads both settings out of storage.local", async () => {
     expect(await readSettings()).toEqual({ tabWidth: 8, fontSize: 11 });
-    expect(calls.get).toEqual([["tabWidth", "fontSize"]]);
+    expect(fake.calls("storage.local.get")).toEqual([
+      [["tabWidth", "fontSize"]],
+    ]);
   });
 
   /**
@@ -258,7 +252,7 @@ describe("the settings store", () => {
       tabWidth: 2,
       fontSize: SETTING_FIELDS.fontSize.max,
     });
-    expect(calls.set).toEqual([stored]);
+    expect(fake.calls("storage.local.set")).toEqual([[stored]]);
   });
 
   /**

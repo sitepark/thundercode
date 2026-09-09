@@ -39,14 +39,29 @@ exclusions=(
   'node_modules/*'
   'pnpm-lock.yaml'
   'package.json'
-  # The test suite and its runner config are dev-only.
+  # The test suite, its runner config and any coverage report it left behind
+  # are dev-only. The report matters here because it is written into the
+  # working tree, which is what this script zips.
   'tests/*'
   'vitest.config.js'
-  # This script and anything else that builds rather than ships.
+  'coverage/*'
+  # Release tooling. git-cliff renders the release notes at publish time and
+  # nothing at runtime reads its config; it shipped in the archive until
+  # Thunderbird's linter noticed it sitting there unreferenced.
+  'cliff.toml'
+  # This script and anything else that builds rather than ships, including the
+  # linter scripts/lint.sh fetches and the caches it fills.
   'scripts/*'
+  '.webext-linter/*'
+  '.webext-linter-cache/*'
   # Its own output, and any archive left at the root by an earlier convention.
   'dist/*'
   '*.xpi'
+  # The Thunderbird tier's cache: an extracted Thunderbird, a geckodriver and a
+  # profile per run. Excluded for the obvious reason and one less obvious one -
+  # this script is what the tier installs, so an unexcluded build would zip the
+  # 84 MiB Thunderbird it is about to be installed into.
+  '.thunderbird/*'
   # Issue tracker, specs and repo documentation. `.git` is matched both as a
   # directory (main checkout) and as a plain file (git worktrees).
   '.scratch/*'

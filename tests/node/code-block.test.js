@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   CONTAINER_CLASS,
   buildCodeBlockHtml,
-} from "../src/code-block/build-code-block-html.js";
+} from "../../src/code-block/build-code-block-html.js";
 // The one import here that is not the seam, and only ever read from: the
 // bundle's own language list is what "detection can only return a language
 // present in the bundle" is a claim about, and it is also what the popup fills
 // its dropdown from. Asserting against it keeps that one list one list.
-import hljs from "../vendor/highlight.js/common.js";
+import hljs from "../../vendor/highlight.js/common.js";
 
 /**
  * Read the block back without pinning its markup shape. Asserting on the
