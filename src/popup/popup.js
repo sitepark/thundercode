@@ -2,6 +2,7 @@ import hljs from "../../vendor/highlight.js/common.js";
 import { buildCodeBlockHtml } from "../code-block/build-code-block-html.js";
 import { insertIntoBody } from "../compose/insert-into-body.js";
 import { readSettings } from "../settings/settings.js";
+import { createLanguageLatch } from "./language-latch.js";
 import { measureSnippet } from "./snippet-size.js";
 import { loadThemeMap } from "./theme-map.js";
 
@@ -59,56 +60,24 @@ function fillLanguageDropdown() {
 fillLanguageDropdown();
 
 /**
- * Whether the user has taken the language over.
+ * The override rule - whether the language has been taken over, and whether a
+ * fresh guess is owed - lives in ./language-latch.js, where it can be driven
+ * without a document. One latch per popup, built here rather than imported as
+ * state, because the document is built fresh every time the button is clicked
+ * and the rule resets with it.
  *
- * Once they have, detection stops for the rest of this popup: an override is
- * an instruction, and a dropdown that re-guesses over the top of a deliberate
- * choice is worse than one that never guessed. It is a plain module variable
- * on purpose - the popup document is built fresh every time the button is
- * clicked, so this resets itself, and there is deliberately nothing anywhere
- * that writes the chosen language to `storage`. Remembering it across opens is
- * exactly how auto-detection stops working without anyone noticing.
+ * What is left in this file is the two halves the latch deliberately does not
+ * know about: which edits count as wholesale, which needs the event, and what
+ * the dropdown currently shows, which is passed in on every question.
  */
-let languageOverridden = false;
-
-/**
- * Whether the language the next render applies should be detected rather than
- * taken from the dropdown.
- *
- * Detection and the preview are one seam call - a source change costs one
- * highlight pass, not two - so this flag is the whole of the difference
- * between the two kinds of edit: every change re-renders, and only a wholesale
- * one asks for a fresh guess. It is set by the change and cleared by the
- * render that honours it, so two pastes in quick succession still detect once.
- *
- * It starts `true` so that the load-time render derives the dropdown's opening
- * value from the (empty) textarea like every other value it takes, rather than
- * leaving it on the first entry of an alphabetical list.
- */
-let detectionDue = true;
+const latch = createLanguageLatch();
 
 languageField.addEventListener("change", () => {
-  languageOverridden = true;
+  latch.takeOver();
   // `change` is what a dropdown fires, and re-rendering on it is what makes a
   // corrected language confirmable by eye without touching the source again.
   schedulePreview();
 });
-
-/**
- * What the seam should be told about the language: nothing at all - which is
- * how any caller asks it to detect - while a wholesale change is still waiting
- * to be rendered, and the dropdown's value otherwise.
- *
- * A function rather than a branch inside the render, because the insert needs
- * the same answer. Paste and Ctrl+Enter inside the debounce window is a real
- * path - it is close to the fastest way to use this popup - and reading the
- * dropdown there would insert the block under whatever language was last
- * shown. Both callers detect through the same pure seam over the same source,
- * so they cannot arrive at different answers.
- */
-function requestedLanguage() {
-  return detectionDue && !languageOverridden ? undefined : languageField.value;
-}
 
 /**
  * The compose window this popup was opened from.
@@ -148,8 +117,10 @@ async function insert() {
     source: sourceField.value,
     // Not the dropdown directly: an insert can outrun the debounced render
     // that would have filled it in, and this asks for detection in that window
-    // rather than shipping a block under a language nobody chose.
-    language: requestedLanguage(),
+    // rather than shipping a block under a language nobody chose. Asking
+    // without honouring leaves the request standing, so the render that was
+    // already due still detects.
+    language: latch.requestedLanguage(languageField.value),
     themeMap: await themeMap,
     tabWidth,
     fontSize,
@@ -307,10 +278,10 @@ async function renderFromSource() {
   }
 
   const source = sourceField.value;
-  // Read and cleared after the staleness check, so a render that turns out to
-  // be stale cannot swallow a detection the newer one still owes.
-  const language = requestedLanguage();
-  detectionDue = false;
+  // Asked after the staleness check, because asking this way spends the
+  // request: a render that turns out to be stale must not swallow a detection
+  // the newer one still owes.
+  const language = latch.honourRequest(languageField.value);
 
   const { html, detectedLanguage } = buildCodeBlockHtml({
     source,
@@ -402,7 +373,7 @@ function handleSourceChanged({ wholesale, immediate = false }) {
   // highlight, and a warning that appeared a fifth of a second after the paste
   // would read as a reaction to whatever the user did next.
   refreshSizeWarning();
-  if (wholesale) detectionDue = true;
+  latch.sourceChanged({ wholesale });
 
   if (immediate) {
     renderNow();
