@@ -11,6 +11,12 @@ dist/
 .webext-linter/
 .webext-linter-cache/
 
+# What the Thunderbird tier downloads and generates: the pinned build, the
+# driver, and one profile per run. Nothing here is reproducible from the repo
+# on purpose - it is reproducible from `pnpm test:thunderbird`, which fetches
+# it, and every byte of it is pinned in tests/thunderbird/harness/pins.js.
+.thunderbird/
+
 # Coverage reports. Written by `pnpm coverage`, read once, never committed -
 # nothing is gated on them, so there is nothing here worth keeping.
 coverage/

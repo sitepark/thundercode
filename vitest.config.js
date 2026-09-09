@@ -42,12 +42,38 @@ export default defineConfig({
           include: ["tests/dom/**/*.test.js"],
         },
       },
-      // The third tier - a real Thunderbird, driven headless - arrives as a
-      // project of its own over `tests/thunderbird/`, run by its own command.
-      // It is absent here on purpose so that `pnpm test` stays green on a
-      // machine with no Thunderbird installed. The node tier above already
-      // declines to claim that directory, so adding the project is the whole
-      // of the change.
+      {
+        test: {
+          name: "thunderbird",
+
+          // A real Thunderbird, fetched and driven headless. No DOM from the
+          // runner: the document this tier works with is the one inside the
+          // application, reached over WebDriver, and a jsdom sitting in the
+          // test process would only be something to confuse it with.
+          environment: "node",
+          include: ["tests/thunderbird/**/*.test.js"],
+
+          // Kept out of `pnpm test`, which names its projects. Not because it
+          // would fail on a machine with no Thunderbird - it fetches its own,
+          // so it passes from a clean checkout - but because the default run
+          // must not need the network, 90 MiB of disk or two minutes, and
+          // because an unsupported harness should never be the reason a
+          // change cannot be tested. `pnpm test:thunderbird` runs it.
+
+          // One Thunderbird at a time. Two files starting one each would race
+          // over the download on a cold cache and then compete for the same
+          // driver port, and the failure would look like the harness rather
+          // than like the arrangement.
+          fileParallelism: false,
+
+          // Minutes, not seconds, and the two differ for a reason: the hook is
+          // where a cold cache downloads Thunderbird and geckodriver, while a
+          // test only drives an application that is already up. A test that
+          // takes a minute is a hung window, not a slow one.
+          hookTimeout: 600_000,
+          testTimeout: 120_000,
+        },
+      },
     ],
 
     coverage: {

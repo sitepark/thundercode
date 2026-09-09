@@ -57,6 +57,11 @@ exclusions=(
   # Its own output, and any archive left at the root by an earlier convention.
   'dist/*'
   '*.xpi'
+  # The Thunderbird tier's cache: an extracted Thunderbird, a geckodriver and a
+  # profile per run. Excluded for the obvious reason and one less obvious one -
+  # this script is what the tier installs, so an unexcluded build would zip the
+  # 84 MiB Thunderbird it is about to be installed into.
+  '.thunderbird/*'
   # Issue tracker, specs and repo documentation. `.git` is matched both as a
   # directory (main checkout) and as a plain file (git worktrees).
   '.scratch/*'
