@@ -97,6 +97,18 @@ describe("the installed add-on", () => {
     expect(info.signedState).toBeLessThanOrEqual(0);
     expect((await session.updateGuards()).signaturesRequired).toBe(false);
   });
+
+  it("came from the archive the release ships, named for the manifest", async () => {
+    // The harness installs `scripts/package.sh`'s output rather than zipping
+    // the checkout itself, so every run of this tier is a run of the release
+    // script. That makes the archive's name something this tier asserts rather
+    // than something to check by hand before a tag. What it does not cover is
+    // installing that archive through the Add-ons Manager, which is a
+    // different code path and stays on the checklist.
+    expect(path.basename(session.archive)).toBe(
+      `thundercode-${manifest.version}.xpi`,
+    );
+  });
 });
 
 describe("a compose window", () => {

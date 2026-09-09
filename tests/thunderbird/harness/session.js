@@ -50,6 +50,27 @@ export const ACTION_TOOLBAR_ID =
     ? "FormatToolbar"
     : "composeToolbar2";
 
+/**
+ * The two other places Thunderbird files this add-on under, derived from the
+ * same widget id as the button and for the same reason.
+ *
+ * `SHORTCUT_KEYSET_ID` is the `keyset` the extension framework appends to
+ * every window it registers the manifest's `commands` in, holding one `key`
+ * element per shortcut. `MENU_ITEM_ID_PREFIX` is what an item created through
+ * the `menus` API is given, followed by an underscore and the id the extension
+ * chose - so the prefix finds this add-on's items in a menu without this file
+ * knowing that id, which lives in the background and is not exported.
+ */
+export const SHORTCUT_KEYSET_ID = `ext-keyset-id-${widgetId}`;
+export const MENU_ITEM_ID_PREFIX = `${widgetId}-menuitem-`;
+
+/**
+ * Thunderbird's own context menu for the message body, by its id in
+ * `messengercompose.xhtml`. The `menus` API's `compose_body` context is this
+ * menu, so an item registered for that context is an item in here.
+ */
+const COMPOSE_CONTEXT_MENU_ID = "msgComposeContext";
+
 const COMPOSE_WINDOW_URL =
   "chrome://messenger/content/messengercompose/messengercompose.xhtml";
 
@@ -161,6 +182,28 @@ class ComposeWindow {
     return this.chrome("return GetCurrentEditor().rootElement.textContent;");
   }
 
+  /**
+   * The body as the message would carry it, through the editor's own
+   * serialiser.
+   *
+   * This exists for the plain-text composer, where `bodyText()` is not enough:
+   * that editor represents a line break as a `br` element, which
+   * `textContent` drops silently, so a snippet's indentation survives the
+   * insert and then disappears on the way into the assertion. `OutputRaw`
+   * keeps the serialiser from re-wrapping the result to the composer's line
+   * width, which is a thing it does by default and which would rewrite the
+   * very lines this is being read to check.
+   */
+  async bodyPlainText() {
+    return this.chrome(`
+      const encoder = Ci.nsIDocumentEncoder;
+      return GetCurrentEditor().outputToString(
+        "text/plain",
+        encoder.OutputLFLineBreak | encoder.OutputRaw
+      );
+    `);
+  }
+
   /** Puts the caret in the message body, which is where an insert lands. */
   async focusBody() {
     await this.chrome(`
@@ -169,6 +212,17 @@ class ComposeWindow {
       document.getElementById("messageEditor").focus();
     `);
     return this;
+  }
+
+  /**
+   * Types into the message body, which is how a test gets text for a caret to
+   * sit in the middle of. Real keys rather than an assignment to `innerHTML`,
+   * so what an insert then has to leave intact is text the editor itself put
+   * there, wrapped in whatever the editor decided to wrap it in.
+   */
+  async typeIntoBody(...keys) {
+    await this.focusBody();
+    return this.sendKeys(...keys);
   }
 
   /**
@@ -250,13 +304,301 @@ class ComposeWindow {
     const before = (await this.actionPopupUrls()).length;
     const button = await this.actionButton();
     await button.click();
+    return this.waitForActionPopup(before);
+  }
+
+  /**
+   * Waits for one more action popup than there was, and for the panel around
+   * it to finish opening. Shared by the two ways the popup is opened here, the
+   * button and the shortcut, because "the popup appeared" is the same wait
+   * either way and the panel's state is the readiness signal both need: a
+   * popup focused while its panel is still `showing` is dismissed rather than
+   * focused.
+   */
+  async waitForActionPopup(before = 0) {
     const urls = await waitFor("the action popup to load", async () => {
       const open = await this.actionPopupUrls();
       return open.length > before && open.at(-1)?.startsWith("moz-extension://")
         ? open
         : null;
     });
+    await waitFor("the action popup's panel to finish opening", () =>
+      this.chrome(`
+        const browser = document.querySelector('browser[webextension-view-type="popup"]');
+        if (!browser) throw new Error("the action popup closed again");
+        return browser.closest("panel")?.state === "open";
+      `),
+    );
     return urls.at(-1);
+  }
+
+  /**
+   * Gives the open popup the keyboard, which is the difference between a test
+   * that drives the add-on and a test that types into the message body.
+   *
+   * Opening the popup does not move the chrome window's focus, so keys
+   * synthesised into this window still go to the message editor. That failure
+   * is silent and it looks like a passing test: the snippet turns up in the
+   * body as typed text, `Ctrl+Enter` reaches the compose window's own Send
+   * binding rather than the popup's confirm, and in a plain-text composer the
+   * result is indistinguishable from a successful insert. Every test here
+   * therefore reads the body once before confirming and expects it empty.
+   *
+   * Focusing the `browser` element is what moves the focus.
+   * `Services.focus.setFocus(browser, FLAG_BYKEY)` does the same thing;
+   * `panel.focus()` and `browsingContext.focus()` were both tried and neither
+   * moves it at all.
+   *
+   * None of this reads the popup's document, which is still out of reach - see
+   * `openActionPopup()`. It puts the keyboard where a person's click already
+   * put it.
+   */
+  async focusActionPopup() {
+    await waitFor("the action popup to take the keyboard", () =>
+      this.chrome(`
+        const browser = document.querySelector('browser[webextension-view-type="popup"]');
+        if (!browser) throw new Error("the action popup closed");
+        browser.focus();
+        return document.activeElement === browser;
+      `),
+    );
+    return this;
+  }
+
+  /** Types into the open popup rather than into the message body. */
+  async typeIntoActionPopup(...keys) {
+    await this.focusActionPopup();
+    return this.sendKeys(...keys);
+  }
+
+  /**
+   * Confirms the popup from the keyboard and waits for it to close.
+   *
+   * `Ctrl+Enter` rather than the Insert button because the button is inside
+   * the popup's document and unreachable, and because the popup deliberately
+   * runs both through one function: a keyboard confirm that behaves
+   * differently from the button is the bug that function exists to prevent.
+   *
+   * The popup closing is the signal that the insert succeeded - it closes
+   * itself on success and stays open with an error line on failure, and that
+   * line cannot be read from out here. So the timeout says which of the two
+   * happened, because "no block in the body" on its own does not.
+   */
+  async confirmActionPopup() {
+    await this.pressChord(Key.CONTROL, Key.ENTER);
+    await waitFor(
+      "the popup to close, which is how a successful insert ends - a failed " +
+        "one leaves it open showing an error line this harness cannot read",
+      async () => (await this.actionPopupUrls()).length === 0,
+    );
+    return this;
+  }
+
+  /**
+   * The `key` elements Thunderbird derived from the manifest's `commands`, as
+   * their attributes.
+   *
+   * Read out of the keyset the extension framework appended to this window, so
+   * what comes back is Thunderbird's own translation of the manifest rather
+   * than this repo's restatement of it: `Ctrl+Shift+C` arrives as
+   * `modifiers="accel,shift"` with `key="C"`, and `accel` is the part that
+   * makes the same manifest entry read as Command on macOS.
+   */
+  async actionShortcutKeys() {
+    return this.chrome(
+      `const [keysetId] = arguments;
+       const keyset = document.getElementById(keysetId);
+       return Array.from(keyset?.children ?? []).map((key) => ({
+         key: key.getAttribute("key"),
+         keycode: key.getAttribute("keycode"),
+         modifiers: key.getAttribute("modifiers"),
+       }));`,
+      SHORTCUT_KEYSET_ID,
+    );
+  }
+
+  /**
+   * Fires the add-on's shortcut the way a key press does, minus the key press
+   * itself, and waits for the popup.
+   *
+   * This is the honest half of that shortcut, and the half that is this
+   * add-on's. A synthesised `Ctrl+Shift+C` never reaches the key element at
+   * all: for a letter key the element matches on keypress, and synthesised
+   * input produces keydown and keyup and no keypress - `Ctrl+Shift+Q`, which
+   * Thunderbird binds to nothing, produces all three. What is left on this
+   * side of that event is the manifest's `commands` entry having become a key
+   * element with the right modifiers, and that element's command opening this
+   * add-on's popup over this window, and that is what this drives. Delivering
+   * the key press is Thunderbird's side of the bargain and stays on the
+   * release checklist.
+   */
+  async pressActionShortcut() {
+    const before = (await this.actionPopupUrls()).length;
+    await this.chrome(
+      `const [keysetId] = arguments;
+       const [key] = document.getElementById(keysetId)?.children ?? [];
+       if (!key) {
+         throw new Error(keysetId + " holds no key element for this add-on");
+       }
+       key.dispatchEvent(new window.Event("command", { bubbles: true, cancelable: true }));`,
+      SHORTCUT_KEYSET_ID,
+    );
+    return this.waitForActionPopup(before);
+  }
+
+  /**
+   * Finds the first occurrence of some text in the message body and puts the
+   * selection over it, or the caret after it.
+   *
+   * One walk with two endings, because the two callers want the same search:
+   * a right-click needs a selection to carry, and an insert mid-paragraph
+   * needs a caret with text on both sides of it. Written as a walk over text
+   * nodes rather than a `Range` search because there is no such search, and
+   * because the body a test seeds is one paragraph deep anyway.
+   */
+  async findInBody(text, { collapseAfter = false } = {}) {
+    const selected = await this.chrome(
+      `const [needle, collapseAfter] = arguments;
+       const editor = GetCurrentEditor();
+       const bodyDocument = editor.document;
+       const walker = bodyDocument.createTreeWalker(
+         editor.rootElement,
+         bodyDocument.defaultView.NodeFilter.SHOW_TEXT
+       );
+       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+         const at = node.data.indexOf(needle);
+         if (at === -1) continue;
+         const range = bodyDocument.createRange();
+         range.setStart(node, collapseAfter ? at + needle.length : at);
+         range.setEnd(node, at + needle.length);
+         if (collapseAfter) range.collapse(true);
+         editor.selection.removeAllRanges();
+         editor.selection.addRange(range);
+         return collapseAfter ? "" : editor.selection.toString();
+       }
+       return null;`,
+      text,
+      collapseAfter,
+    );
+    const wanted = collapseAfter ? "" : text;
+    if (selected !== wanted) {
+      throw new Error(
+        `wanted ${JSON.stringify(text)} in the message body, found ${JSON.stringify(selected)}`,
+      );
+    }
+    return this;
+  }
+
+  /** Selects some text in the body - something for a right-click to carry. */
+  async selectInBody(text) {
+    return this.findInBody(text);
+  }
+
+  /** Puts the caret straight after some text in the body, selecting nothing. */
+  async placeCaretAfter(text) {
+    return this.findInBody(text, { collapseAfter: true });
+  }
+
+  /**
+   * Right-clicks the current selection in the message body, waits for
+   * Thunderbird's compose context menu, and answers with this add-on's items
+   * in it.
+   *
+   * A real widget-level event, synthesised into the editor's own window at the
+   * selection's coordinates. Not a `dispatchEvent`: the menu is built from
+   * `nsContextMenu.contentData`, which the context-menu actor fills in from a
+   * trusted event, so an untrusted one opens no menu at all. And on the
+   * selection rather than at the middle of the editor, because Gecko collapses
+   * a selection that a right-click misses, and the selection is the whole
+   * subject here.
+   */
+  async openBodyContextMenu() {
+    await this.chrome(`
+      const editor = GetCurrentEditor();
+      const view = editor.document.defaultView;
+      const rect = editor.selection.getRangeAt(0).getBoundingClientRect();
+      view.windowUtils.sendMouseEvent(
+        "contextmenu",
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+        2,
+        1,
+        0
+      );
+    `);
+    await waitFor(`the ${COMPOSE_CONTEXT_MENU_ID} menu to open`, () =>
+      this.chrome(
+        `const [menuId] = arguments;
+         return document.getElementById(menuId)?.state === "open";`,
+        COMPOSE_CONTEXT_MENU_ID,
+      ),
+    );
+    return this.chrome(
+      `const [menuId, prefix] = arguments;
+       return Array.from(document.getElementById(menuId).querySelectorAll("menuitem"))
+         .filter((item) => item.id.startsWith(prefix))
+         .map((item) => ({ id: item.id, label: item.getAttribute("label") }));`,
+      COMPOSE_CONTEXT_MENU_ID,
+      MENU_ITEM_ID_PREFIX,
+    );
+  }
+
+  /**
+   * Activates a context menu item by id, and closes the menu as a click would.
+   *
+   * `doCommand()` rather than a synthesised click: a menu popup is its own
+   * widget, and aiming a click at a platform menu is a different problem from
+   * the one this is about. Hiding the menu afterwards is the other half of
+   * what the click does - the extension framework's own handler for a
+   * modified click does exactly this pair - and it matters here because a
+   * context menu left open is a popup that the action popup would have to open
+   * behind.
+   */
+  async activateMenuItem(id) {
+    await this.chrome(
+      `const [menuId, itemId] = arguments;
+       const item = document.getElementById(itemId);
+       if (!item) throw new Error("no " + itemId + " in " + menuId);
+       item.doCommand();
+       document.getElementById(menuId).hidePopup();`,
+      COMPOSE_CONTEXT_MENU_ID,
+      id,
+    );
+    await waitFor(`the ${COMPOSE_CONTEXT_MENU_ID} menu to close`, () =>
+      this.chrome(
+        `const [menuId] = arguments;
+         return document.getElementById(menuId)?.state !== "open";`,
+        COMPOSE_CONTEXT_MENU_ID,
+      ),
+    );
+    return this;
+  }
+
+  /**
+   * What the editor thinks was done to it. This is how an editor action is
+   * told apart from a DOM mutation from the platform's side: only a real
+   * editor command leaves a transaction on the undo stack, so a block that can
+   * be taken out again with one undo did not arrive by having its nodes
+   * appended.
+   *
+   * `canUndo` is a property here and not a method, which is worth writing down
+   * because it was a method for years and still reads like one.
+   */
+  async editorState() {
+    return this.chrome(`
+      const editor = GetCurrentEditor();
+      return {
+        canUndo: editor.canUndo,
+        canRedo: editor.canRedo,
+        modificationCount: editor.getModificationCount(),
+      };
+    `);
+  }
+
+  /** Undo, as `Ctrl+Z` would - one step unless asked for more. */
+  async undo(steps = 1) {
+    await this.chrome(`GetCurrentEditor().undo(arguments[0]);`, steps);
+    return this;
   }
 
   /** Dismisses an open popup, which is what a person's Escape key does. */
@@ -294,12 +636,18 @@ class ComposeWindow {
 }
 
 class Session {
-  constructor(driver, { thunderbird, geckodriver, profileDir, addonId, mainWindow }) {
+  constructor(
+    driver,
+    { thunderbird, geckodriver, profileDir, addonId, archive, mainWindow },
+  ) {
     this.driver = driver;
     this.thunderbird = thunderbird;
     this.geckodriver = geckodriver;
     this.profileDir = profileDir;
     this.addonId = addonId;
+    // The archive this run installed, so a test can assert what the release
+    // script produced rather than running it a second time to look.
+    this.archive = archive;
     this.mainWindow = mainWindow;
     this.actionButtonId = ACTION_BUTTON_ID;
     this.actionToolbarId = ACTION_TOOLBAR_ID;
@@ -309,6 +657,39 @@ class Session {
   async chrome(script, ...args) {
     await this.focusMainWindow();
     return this.driver.executeScript(script, ...args);
+  }
+
+  /**
+   * Every `console` call this process has cached, oldest first, as a level and
+   * the arguments joined into one line.
+   *
+   * This is how the insertion function's report of which path it took becomes
+   * observable from outside its sandbox, which is the one thing that report
+   * exists for: the popup throws the return value away as it closes, and the
+   * function logs the mechanism precisely because of that. The compose editor
+   * runs in the parent process, so the sandbox injected into it logs here
+   * rather than in a content process.
+   *
+   * `nsIConsoleAPIStorage` rather than an observer, and that is not a
+   * preference: the `console-api-log-event` topic these events used to be
+   * notified on was replaced by an explicit listener list, so a registered
+   * observer is never called and reads as the add-on having logged nothing.
+   * Reading the cache after the fact needs no registration at all.
+   *
+   * The cache is per inner window and is cleared when that window is
+   * destroyed, so a test reads it before closing the compose window it is
+   * asking about - which also means one test cannot see another's reports.
+   */
+  async consoleMessages() {
+    return this.chrome(`
+      const storage = Cc["@mozilla.org/consoleAPI-storage;1"].getService(
+        Ci.nsIConsoleAPIStorage
+      );
+      return storage.getEvents().map((event) => ({
+        level: event.level,
+        text: Array.from(event.arguments ?? []).map(String).join(" "),
+      }));
+    `);
   }
 
   async focusMainWindow() {
@@ -535,6 +916,7 @@ export async function startThunderbird({ log = () => {}, prefs = {} } = {}) {
       geckodriver,
       profileDir,
       addonId,
+      archive: xpi,
       mainWindow,
     });
   } catch (error) {
