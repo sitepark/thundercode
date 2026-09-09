@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CODE_BLOCK_DEFAULTS } from "../src/code-block/build-code-block-html.js";
+import { CODE_BLOCK_DEFAULTS } from "../../src/code-block/build-code-block-html.js";
 import {
   SETTING_FIELDS,
   coerceSettings,
   readSettings,
   writeSettings,
-} from "../src/settings/settings.js";
+} from "../../src/settings/settings.js";
 
 /**
  * The options page is verified by hand, like the popup - the runner has no DOM

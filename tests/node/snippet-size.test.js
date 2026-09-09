@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   LARGE_SNIPPET_LINES,
   measureSnippet,
-} from "../src/popup/snippet-size.js";
+} from "../../src/popup/snippet-size.js";
 
 const lines = (count) => Array.from({ length: count }, (_, i) => `${i}`);
 

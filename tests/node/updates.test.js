@@ -3,9 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { buildUpdatesManifest } from "../scripts/build-updates-json.mjs";
+import { buildUpdatesManifest } from "../../scripts/build-updates-json.mjs";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const manifest = JSON.parse(
   readFileSync(resolve(repoRoot, "manifest.json"), "utf8"),
 );

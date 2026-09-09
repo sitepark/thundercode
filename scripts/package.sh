@@ -39,9 +39,12 @@ exclusions=(
   'node_modules/*'
   'pnpm-lock.yaml'
   'package.json'
-  # The test suite and its runner config are dev-only.
+  # The test suite, its runner config and any coverage report it left behind
+  # are dev-only. The report matters here because it is written into the
+  # working tree, which is what this script zips.
   'tests/*'
   'vitest.config.js'
+  'coverage/*'
   # This script and anything else that builds rather than ships.
   'scripts/*'
   # Its own output, and any archive left at the root by an earlier convention.

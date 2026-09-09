@@ -4,4 +4,8 @@ node_modules/
 *.xpi
 dist/
 
+# Coverage reports. Written by `pnpm coverage`, read once, never committed -
+# nothing is gated on them, so there is nothing here worth keeping.
+coverage/
+
 .DS_Store
