@@ -44,12 +44,15 @@ commit_parsers = [
   { message = "^Merge", skip = true },
   { message = "^feat", group = "<!-- 0 -->Added" },
   { message = "^fix", group = "<!-- 1 -->Fixed" },
-  { message = "^refactor", group = "<!-- 2 -->Changed" },
+  # `perf` alone owns Changed. A faster add-on is something someone using it
+  # experiences, so it belongs in the notes; a refactor by definition changes
+  # nothing observable, so it is listed with the internal-only types below.
   { message = "^perf", group = "<!-- 2 -->Changed" },
   { message = "^revert", group = "<!-- 3 -->Removed" },
   # Internal-only types. They are required on the commit and absent from the
   # release notes: someone reading them wants to know what the add-on now
   # does, not how the repo is maintained.
+  { message = "^refactor", skip = true },
   { message = "^docs", skip = true },
   { message = "^test", skip = true },
   { message = "^chore", skip = true },

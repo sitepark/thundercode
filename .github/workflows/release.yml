@@ -79,11 +79,13 @@ jobs:
       # The release body is the whole changelog: there is no CHANGELOG.md, so
       # this is the only place a release is described.
       #
-      # Empty output means every commit this cycle was an internal type. That
-      # is worth stopping for rather than publishing a blank body: an update
-      # reaches every installed copy, and one that says nothing about what
-      # changed is worse than not releasing. It runs before the tests because
-      # it is the cheapest check here.
+      # Empty output means every commit this cycle was an internal type, which
+      # a cycle spent on tests, docs or a refactor legitimately is. It does not
+      # stop the release: the step says why the body is blank and publishing
+      # continues. That call belongs to whoever dispatched the workflow, who
+      # read `pnpm changelog` first, rather than to a job already told to
+      # publish - and the warnings are what make an empty body legible in the
+      # log afterwards.
       - name: Build the release notes
         run: |
           pnpm exec git-cliff --config cliff.toml \

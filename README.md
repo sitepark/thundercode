@@ -130,10 +130,15 @@ Two types reach the notes:
 - `feat` - an **Added** entry.
 - `fix` - a **Fixed** entry.
 
-`refactor` and `perf` become **Changed**, `revert` becomes **Removed**, and
+`perf` becomes **Changed** and `revert` becomes **Removed**. `refactor`,
 `docs`, `test`, `chore`, `ci`, `build` and `style` are required on the commit
 but deliberately absent from the notes: someone reading them wants to know
 what the add-on now does, not how the repo is maintained.
+
+`refactor` is on that list rather than beside `perf` for the same reason. A
+refactor changes nothing anyone using the add-on can observe, so an entry for
+one tells a reader waiting to hear what the add-on now does about a file move
+instead. `perf` stays because a faster add-on is something a user experiences.
 
 Scopes in use: `compose`, `code-block`, `popup`, `options`, `ui`, `release`.
 
@@ -142,9 +147,11 @@ meant to be caught in review - silently listing it under the wrong heading
 would be worse. Merge commits are skipped for the same reason and keep their
 default subjects.
 
-Run `pnpm changelog` at any point to see what the next release will say. If a
-cycle produces nothing, the release is refused rather than published with an
-empty body; see below.
+Run `pnpm changelog` at any point to see what the next release will say. A
+cycle whose every commit was an internal type produces nothing at all, which
+is an ordinary outcome rather than a rare one - a cycle spent on tests and an
+extraction committed as `refactor` is exactly that. What happens next is
+under Releasing.
 
 Because the notes are written at publish time from the commits themselves,
 there is nothing to prepare and nothing that can go stale. Fixing a bad
@@ -162,17 +169,18 @@ chooses it. Releasing is running an action, not pushing a tag.
 3. **Actions ▸ Release ▸ Run workflow**, on `main`. Leave the bump at `minor`
    unless the next cycle is a patch or a major.
 
-The workflow refuses to start unless it is on `main`, the version is not
-already tagged, and the generated notes are not empty. It then runs the tests,
-builds the archive, generates `updates.json` from the manifest and the
+The workflow refuses to start unless it is on `main` and the version is not
+already tagged. It then runs the tests, builds the archive, generates `updates.json` from the manifest and the
 archive's digest, publishes both under a tag it creates itself with the notes
 as the release body, and finally raises `manifest.json` to the next version
 and pushes that to `main`.
 
-Empty notes mean every commit in the cycle was an internal type, so the
-release is refused. An update reaches every installed copy, and one that says
-nothing about what changed is worse than not releasing at all. If something
-user-facing did land, it was committed under the wrong type.
+Empty notes do not stop it. They mean every commit in the cycle was an
+internal type, and the workflow prints why the body is blank and publishes
+anyway. That call is step 1's, not the job's: read `pnpm changelog` and decide
+there, because a release with nothing to say about it is usually one worth
+skipping, and if something user-facing did land it was committed under the
+wrong type.
 
 So `main` always sits on an unreleased version, and every tag names a commit
 where the manifest agreed with it. The bump comes last on purpose: if anything
