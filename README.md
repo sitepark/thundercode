@@ -44,6 +44,23 @@ This writes `dist/thundercode-<version>.xpi`, taking the version from
 `manifest.json`. There is no build step — the archive is the repo directory
 zipped, minus tests, docs and tooling.
 
+## Linting the archive
+
+```sh
+pnpm run lint
+```
+
+Builds the archive and runs [addons-linter](https://github.com/mozilla/addons-linter)
+over it — the engine behind `web-ext lint`, and the nearest thing to a review
+Thunderbird add-ons have. It lints the built `.xpi` rather than the checkout, so
+what it reads is what ships.
+
+Zero errors is the bar. Warnings are not, and cannot be: the linter knows
+Firefox, so the MailExtension APIs this add-on exists to call — the `compose`
+permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` — all
+read to it as unsupported. Skim the list rather than trusting the exit code; it
+is short enough to know by heart, and a new entry is worth a look.
+
 ## Developing
 
 Install-from-file is for using it. For iterating, load the checkout directly:

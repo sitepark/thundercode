@@ -9,9 +9,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "package": "bash scripts/package.sh",
+    "lint": "bash scripts/lint.sh",
     "changelog": "git-cliff --unreleased --strip all"
   },
   "devDependencies": {
+    "addons-linter": "^10.10.0",
     "git-cliff": "^2.13.1",
     "highlight.js": "11.12.0",
     "vitest": "^5.0.0"
