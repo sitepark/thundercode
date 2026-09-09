@@ -7,9 +7,10 @@ import {
   readSettings,
   writeSettings,
 } from "../../src/settings/settings.js";
+import { installBrowserFake } from "../helpers/browser-fake.js";
 
 /**
- * The options page is verified by hand, like the popup - the runner has no DOM
+ * The options page is verified by hand, like the popup - this tier has no DOM
  * and is meant not to. What is testable, and is the whole of the ticket's
  * "invalid or empty values fall back to the defaults rather than producing a
  * broken block", is the coercion between storage and the seam. It is a pure
@@ -175,39 +176,23 @@ describe("coerceSettings", () => {
  * this file's stub works. What it records is which area was called, with what,
  * and what the caller did with the answer, and each of those is a decision the
  * module actually makes.
+ *
+ * The stub these tests used to write by hand is now
+ * tests/helpers/browser-fake.js, which generalises it: `storage.sync` is still
+ * present and still throws, and so does everything else this module has not
+ * been given, so a settings module that started calling a second API would
+ * fail here rather than quietly work.
  */
 describe("the settings store", () => {
-  /**
-   * The area the spec rules out. Left in the stub rather than omitted, and
-   * throwing rather than recording, so that "settings follow the profile
-   * around" cannot be introduced quietly by someone who thinks it is an
-   * improvement: every test in here fails at once instead.
-   */
-  const sync = {
-    get: () => {
-      throw new Error("storage.sync is ruled out by the spec");
-    },
-    set: () => {
-      throw new Error("storage.sync is ruled out by the spec");
-    },
-  };
-
-  let calls;
+  let fake;
 
   beforeEach(() => {
-    calls = { get: [], set: [] };
-    vi.stubGlobal("browser", {
+    fake = installBrowserFake({
       storage: {
         local: {
-          get: async (names) => {
-            calls.get.push(names);
-            return { tabWidth: 8, fontSize: 11 };
-          },
-          set: async (values) => {
-            calls.set.push(values);
-          },
+          get: async () => ({ tabWidth: 8, fontSize: 11 }),
+          set: async () => {},
         },
-        sync,
       },
     });
   });
@@ -218,7 +203,9 @@ describe("the settings store", () => {
 
   it("reads both settings out of storage.local", async () => {
     expect(await readSettings()).toEqual({ tabWidth: 8, fontSize: 11 });
-    expect(calls.get).toEqual([["tabWidth", "fontSize"]]);
+    expect(fake.calls("storage.local.get")).toEqual([
+      [["tabWidth", "fontSize"]],
+    ]);
   });
 
   /**
@@ -258,7 +245,7 @@ describe("the settings store", () => {
       tabWidth: 2,
       fontSize: SETTING_FIELDS.fontSize.max,
     });
-    expect(calls.set).toEqual([stored]);
+    expect(fake.calls("storage.local.set")).toEqual([[stored]]);
   });
 
   /**
