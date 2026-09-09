@@ -113,9 +113,10 @@ does not reach one that is already open.
 ### Running the tests
 
 ```sh
-pnpm test        # both automated tiers
-pnpm test:node   # the pure tier alone, for a fast edit loop
-pnpm coverage    # a report; nothing is gated on it
+pnpm test               # both automated tiers
+pnpm test:node          # the pure tier alone, for a fast edit loop
+pnpm test:thunderbird   # the real-Thunderbird tier; see below
+pnpm coverage           # a report; nothing is gated on it
 ```
 
 The suite is split into tiers, and which one a test belongs in is decided by
@@ -127,9 +128,8 @@ where it can be written rather than by what it is about:
 | `dom` | `tests/dom/` | a simulated document, via jsdom |
 | `thunderbird` | `tests/thunderbird/` | a real Thunderbird, driven headless |
 
-`pnpm test` runs the first two. The third needs a Thunderbird to drive, so it
-is a local command run while working the checklist, not part of the default run
-and not part of CI.
+`pnpm test` runs the first two. The third is a local command run while working
+the checklist, not part of the default run and not part of CI.
 
 The `node` tier has no document on purpose: a test that reaches for one there
 fails rather than passing, which is what has kept the code-block pipeline from
@@ -142,6 +142,47 @@ Coverage is reported and never gated - there is no threshold and there will not
 be one. The reasoning behind all of this, including the alternatives that were
 turned down, is in
 [docs/adr/0001-three-test-tiers.md](docs/adr/0001-three-test-tiers.md).
+
+### The real-Thunderbird tier
+
+```sh
+pnpm test:thunderbird
+```
+
+**Thunderbird does not support this and does not document it.** Driving the
+application over WebDriver, switching into its privileged context and
+temp-installing an unsigned build are all things that happen to work rather
+than things anyone has promised to keep working, and a Thunderbird update can
+break the tier with no warning. When that happens it is this project's cost to
+absorb, which is affordable exactly because the tier runs in no pipeline and
+can block nothing. It is the only tier that can exercise the editor command
+path that runs in production.
+
+Nothing needs to be installed first. The command fetches the pinned Thunderbird
+and a matching geckodriver into `.thunderbird/`, verifies both against
+published checksums, and starts the application headless on a profile it
+creates for the run and deletes afterwards. That is about 90 MiB and a couple
+of minutes the first time and nothing on every run after it; the directory is
+ignored and disposable, so deleting it starts over. Linux x86_64 only as it
+stands - the archive names and the driver asset are picked for that platform.
+
+The pinned version is the floor `strict_min_version` promises, which means the
+tier drives a build that is frozen and past end of life. That is the trade the
+promise implies rather than a reason to move the floor, and it is why the
+override below exists.
+
+| Variable | Effect |
+| --- | --- |
+| `THUNDERBIRD_BINARY` | Drive an installed Thunderbird instead of the pin, and skip the download. Needs 128 or newer: a Manifest V3 MailExtension will not load at all below that, so pointing this at an older build fails for a real reason. |
+| `THUNDERBIRD_HEADLESS=0` | Give the application a display. Run the command under `xvfb-run` and it stays unattended; this is the fallback for the things headless Thunderbird has been known to get wrong. |
+| `THUNDERBIRD_TIER_DEBUG=1` | geckodriver's trace log, on the terminal. |
+
+The harness itself is `tests/thunderbird/harness/`, and its interface is
+documented in `tests/thunderbird/harness/index.js` - including two limits found
+while building it, which are worth reading before writing a test that runs into
+them: the add-on's popup cannot be read from outside once it is open, and a
+letter-key shortcut cannot be delivered to Thunderbird 128 by synthesised
+input.
 
 What is still checked by hand is anything that is a claim about Thunderbird
 rather than about this project's own logic; that list is

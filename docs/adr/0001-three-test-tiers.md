@@ -37,9 +37,12 @@ caret insertion and neither implements the editor command at all.
 **`thunderbird`** - a real Thunderbird, driven headless over WebDriver, in
 `tests/thunderbird/`. It is the only tier that can exercise the editor command
 path that actually runs in production, and the only one that can retire a
-checklist item honestly. It is kept out of the default test command so the
-suite stays green on a machine with no Thunderbird installed, and it is run
-locally while working the checklist rather than in CI.
+checklist item honestly. It provisions the Thunderbird it drives, so it is
+green on a machine that has none; it is kept out of the default test command
+anyway, because that run must not need the network, ninety megabytes of disk or
+a couple of minutes, and because an unsupported harness should never be the
+reason a change cannot be tested. It is run locally while working the checklist
+rather than in CI.
 
 `pnpm test` runs `node` and `dom`. `pnpm test:node` runs the strict tier alone,
 because the cost of running tests while editing should never be the reason not
@@ -97,6 +100,14 @@ afternoon when it happens, against a harness that can block nothing because it
 runs in no pipeline. It was verified end to end before being committed to, and
 it is worth the exposure because it is the only place the production insertion
 path can be exercised at all.
+
+What the tier turned out to own, beyond the code: a Thunderbird version, a
+geckodriver version, the archive's compression suffix, a list of preferences,
+an enterprise policy file and a dummy local account, because a compose window
+with no identity does not open. Every one of those is a claim about the outside
+world that can rot while nothing here changes, which is the same exposure as
+the paragraph above and the reason they are pinned in one file with their
+reasons written next to them rather than spread through the harness.
 
 The checklist keeps every item that is a claim about Thunderbird rather than
 about this project's own logic - the button on a dark appearance, the icon
