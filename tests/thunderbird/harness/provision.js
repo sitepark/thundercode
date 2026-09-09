@@ -5,9 +5,9 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import {
+  GECKODRIVER_ARCHIVE,
   GECKODRIVER_SHA256,
   GECKODRIVER_URL,
-  GECKODRIVER_VERSION,
   THUNDERBIRD_ARCHIVE,
   THUNDERBIRD_SHA256SUMS_ENTRY,
   THUNDERBIRD_SHA256SUMS_URL,
@@ -88,9 +88,9 @@ async function publishedThunderbirdDigest() {
   );
 }
 
-async function fetchVerified(url, target, expected, describe) {
+async function fetchVerified(url, target, expected, report) {
   if (!(await exists(target))) {
-    describe(`downloading ${url}`);
+    report(`downloading ${url}`);
     await download(url, target);
   }
   const actual = await digest(target);
@@ -131,41 +131,75 @@ async function writePolicies(appDir) {
   return policies;
 }
 
-async function provisionThunderbird(describe) {
-  const binary = path.join(buildDir, "thunderbird", "thunderbird");
-  if (!(await exists(binary))) {
-    const archive = await fetchVerified(
-      THUNDERBIRD_URL,
-      path.join(downloadDir, THUNDERBIRD_ARCHIVE),
-      await publishedThunderbirdDigest(),
-      describe,
-    );
-    describe(`extracting ${THUNDERBIRD_ARCHIVE}`);
-    // Extracted next to the final directory and moved, for the same reason the
-    // download is: a half-extracted tree must never look like a cached one.
-    const partial = `${buildDir}.partial`;
-    await fs.rm(partial, { recursive: true, force: true });
-    await fs.mkdir(partial, { recursive: true });
-    await run("tar", ["-xjf", archive, "-C", partial]);
-    await fs.rename(partial, buildDir);
-  }
-  await writePolicies(path.join(buildDir, "thunderbird"));
+/**
+ * Both binaries arrive the same way: an archive fetched once, verified against
+ * a published digest, and extracted into a directory that is only moved into
+ * place when the extraction finished. The two differ in the compression flag
+ * and in nothing else, so this is where that sequence lives and each caller
+ * below is left holding only what is true of its own binary.
+ *
+ * `expectedDigest` is a function rather than a value because resolving
+ * Thunderbird's costs a request: on a warm cache `probe` is already there and
+ * nothing should be asked of the network at all.
+ */
+async function fetchArchiveInto({
+  probe,
+  dir,
+  url,
+  archive,
+  expectedDigest,
+  tarFlag,
+  report,
+}) {
+  if (await exists(probe)) return probe;
+
+  const downloaded = await fetchVerified(
+    url,
+    path.join(downloadDir, archive),
+    await expectedDigest(),
+    report,
+  );
+  report(`extracting ${archive}`);
+  // Extracted next to the final directory and moved, for the same reason the
+  // download is: a half-extracted tree must never look like a cached one.
+  const partial = `${dir}.partial`;
+  await fs.rm(partial, { recursive: true, force: true });
+  await fs.mkdir(partial, { recursive: true });
+  await run("tar", [tarFlag, downloaded, "-C", partial]);
+  await fs.rename(partial, dir);
+  return probe;
+}
+
+async function provisionThunderbird(report) {
+  const appDir = path.join(buildDir, "thunderbird");
+  const binary = await fetchArchiveInto({
+    probe: path.join(appDir, "thunderbird"),
+    dir: buildDir,
+    url: THUNDERBIRD_URL,
+    archive: THUNDERBIRD_ARCHIVE,
+    expectedDigest: publishedThunderbirdDigest,
+    tarFlag: "-xjf",
+    report,
+  });
+  // Written on every run rather than only after an extraction: the build
+  // survives between runs and the policy is the only thing stopping it
+  // updating itself, so a cache that lost it has to get it back.
+  await writePolicies(appDir);
   return binary;
 }
 
-async function provisionGeckodriver(describe) {
-  const driver = path.join(geckodriverDir, "geckodriver");
-  if (await exists(driver)) return driver;
-
-  const archive = await fetchVerified(
-    GECKODRIVER_URL,
-    path.join(downloadDir, `geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz`),
-    GECKODRIVER_SHA256,
-    describe,
-  );
-  describe("extracting geckodriver");
-  await fs.mkdir(geckodriverDir, { recursive: true });
-  await run("tar", ["-xzf", archive, "-C", geckodriverDir]);
+async function provisionGeckodriver(report) {
+  const driver = await fetchArchiveInto({
+    probe: path.join(geckodriverDir, "geckodriver"),
+    dir: geckodriverDir,
+    url: GECKODRIVER_URL,
+    archive: GECKODRIVER_ARCHIVE,
+    expectedDigest: async () => GECKODRIVER_SHA256,
+    tarFlag: "-xzf",
+    report,
+  });
+  // Same reason as the policy file above: idempotent, and the repair path for
+  // a cache that was restored without its permission bits.
   await fs.chmod(driver, 0o755);
   return driver;
 }
@@ -196,7 +230,7 @@ export function resolveThunderbirdBinary() {
  * and cannot launch a binary outside its sandbox.
  */
 export async function provision({ log = () => {} } = {}) {
-  const describe = (message) => log(`[thunderbird tier] ${message}`);
+  const report = (message) => log(`[thunderbird tier] ${message}`);
   const resolved = resolveThunderbirdBinary();
 
   if (resolved.source === THUNDERBIRD_ENV) {
@@ -205,11 +239,11 @@ export async function provision({ log = () => {} } = {}) {
         `${THUNDERBIRD_ENV} is set to ${resolved.binary}, which does not exist`,
       );
     }
-    describe(`using ${THUNDERBIRD_ENV}=${resolved.binary}, download skipped`);
+    report(`using ${THUNDERBIRD_ENV}=${resolved.binary}, download skipped`);
   } else {
-    await provisionThunderbird(describe);
+    await provisionThunderbird(report);
   }
 
-  const geckodriver = await provisionGeckodriver(describe);
+  const geckodriver = await provisionGeckodriver(report);
   return { thunderbird: resolved, geckodriver };
 }

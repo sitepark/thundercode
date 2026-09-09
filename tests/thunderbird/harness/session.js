@@ -36,7 +36,7 @@ const manifest = require(path.join(repoRoot, "manifest.json"));
  * test looking for a button that no longer exists while claiming the button is
  * missing.
  */
-export const ADDON_ID = manifest.browser_specific_settings.gecko.id;
+const ADDON_ID = manifest.browser_specific_settings.gecko.id;
 const widgetId = ADDON_ID.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
 export const ACTION_BUTTON_ID = `${widgetId}-composeAction-toolbarbutton`;
 
@@ -61,8 +61,8 @@ export const ACTION_TOOLBAR_ID =
  * chose - so the prefix finds this add-on's items in a menu without this file
  * knowing that id, which lives in the background and is not exported.
  */
-export const SHORTCUT_KEYSET_ID = `ext-keyset-id-${widgetId}`;
-export const MENU_ITEM_ID_PREFIX = `${widgetId}-menuitem-`;
+const SHORTCUT_KEYSET_ID = `ext-keyset-id-${widgetId}`;
+const MENU_ITEM_ID_PREFIX = `${widgetId}-menuitem-`;
 
 /**
  * Thunderbird's own context menu for the message body, by its id in
@@ -126,10 +126,9 @@ async function buildArchive() {
  * window rather than methods on the harness.
  */
 class ComposeWindow {
-  constructor(session, handle, format) {
+  constructor(session, handle) {
     this.session = session;
     this.handle = handle;
-    this.format = format;
   }
 
   get driver() {
@@ -601,16 +600,6 @@ class ComposeWindow {
     return this;
   }
 
-  /** Dismisses an open popup, which is what a person's Escape key does. */
-  async closeActionPopup() {
-    await this.sendKeys(Key.ESCAPE);
-    await waitFor(
-      "the action popup to close",
-      async () => (await this.actionPopupUrls()).length === 0,
-    );
-    return this;
-  }
-
   /** True while the window is still open. */
   async isOpen() {
     const handles = await this.driver.getAllWindowHandles();
@@ -636,21 +625,14 @@ class ComposeWindow {
 }
 
 class Session {
-  constructor(
-    driver,
-    { thunderbird, geckodriver, profileDir, addonId, archive, mainWindow },
-  ) {
+  constructor(driver, { profileDir, addonId, archive, mainWindow }) {
     this.driver = driver;
-    this.thunderbird = thunderbird;
-    this.geckodriver = geckodriver;
     this.profileDir = profileDir;
     this.addonId = addonId;
     // The archive this run installed, so a test can assert what the release
     // script produced rather than running it a second time to look.
     this.archive = archive;
     this.mainWindow = mainWindow;
-    this.actionButtonId = ACTION_BUTTON_ID;
-    this.actionToolbarId = ACTION_TOOLBAR_ID;
   }
 
   /** Privileged code in the main mail window. */
@@ -743,7 +725,7 @@ class Session {
       return null;
     });
 
-    const composeWindow = new ComposeWindow(this, handle, format);
+    const composeWindow = new ComposeWindow(this, handle);
     // The editor is built asynchronously after the window loads, and every
     // useful thing a test does with a composer goes through it, so waiting for
     // it here is the difference between one wait and one in every test.
@@ -753,18 +735,6 @@ class Session {
       ),
     );
     return composeWindow;
-  }
-
-  /** Every open compose window, oldest first. */
-  async composeWindows() {
-    const handles = await this.driver.getAllWindowHandles();
-    const found = [];
-    for (const handle of handles) {
-      await this.driver.switchTo().window(handle);
-      const url = await this.driver.executeScript("return window.location.href;");
-      if (url === COMPOSE_WINDOW_URL) found.push(new ComposeWindow(this, handle, null));
-    }
-    return found;
   }
 
   /**
@@ -912,8 +882,6 @@ export async function startThunderbird({ log = () => {}, prefs = {} } = {}) {
     const addonId = await driver.installAddon(xpi, true);
 
     return new Session(driver, {
-      thunderbird,
-      geckodriver,
       profileDir,
       addonId,
       archive: xpi,

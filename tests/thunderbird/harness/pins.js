@@ -67,7 +67,16 @@ export const THUNDERBIRD_SHA256SUMS_ENTRY = `linux-x86_64/en-US/${THUNDERBIRD_AR
  * published tag, which is the case worth failing on.
  */
 export const GECKODRIVER_VERSION = "0.36.0";
-export const GECKODRIVER_URL = `https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz`;
+
+/**
+ * `.tar.gz` and `linux64`, both of them the release asset's own spelling
+ * rather than a name this file chose. It lives here beside the Thunderbird
+ * archive because this file is the one that holds what the tier pins: built
+ * inline where it is downloaded, the platform and the compression would be two
+ * claims about the outside world sitting somewhere nobody looks for them.
+ */
+export const GECKODRIVER_ARCHIVE = `geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz`;
+export const GECKODRIVER_URL = `https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/${GECKODRIVER_ARCHIVE}`;
 export const GECKODRIVER_SHA256 =
   "0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04";
 
