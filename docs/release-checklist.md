@@ -72,11 +72,6 @@ the release is being prepared on a branch.
       insertion - this is the path users take, and it is not the path
       `about:debugging` exercises.
 - [ ] The Add-ons Manager shows the ThunderCode icon, not a puzzle piece.
-- [ ] Run Thunderbird's reviewer linter once against the archive:
-      clone <https://github.com/thunderbird/webext-linter> and
-      `node verify.js dist/thundercode-<version>.xpi`. Warnings about unknown
-      `messenger.*` APIs and mail permissions are expected noise - the linter
-      does not know Thunderbird's own surface. Anything else is worth reading.
 
 ## Updates
 

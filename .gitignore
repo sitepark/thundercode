@@ -4,6 +4,13 @@ node_modules/
 *.xpi
 dist/
 
+# Thunderbird's linter, fetched by scripts/lint.sh, and the schemas and library
+# hashes it downloads. The tool is pinned to a commit in that script and is not
+# on npm yet, so it is not a dependency this repo can declare; the cache is
+# separate so that bumping the pin does not discard it.
+.webext-linter/
+.webext-linter-cache/
+
 # Coverage reports. Written by `pnpm coverage`, read once, never committed -
 # nothing is gated on them, so there is nothing here worth keeping.
 coverage/

@@ -52,16 +52,47 @@ zipped, minus tests, docs and tooling.
 pnpm run lint
 ```
 
-Builds the archive and runs [addons-linter](https://github.com/mozilla/addons-linter)
-over it - the engine behind `web-ext lint`, and the nearest thing to a review
-Thunderbird add-ons have. It lints the built `.xpi` rather than the checkout, so
-what it reads is what ships.
+Builds the archive and runs Thunderbird's own
+[webext-linter](https://github.com/thunderbird/webext-linter) over it. It
+matches every `browser.*` call against Thunderbird's annotated API schemas and
+applies the addons.thunderbird.net review policies, so it knows the surface
+this add-on is built on: the `compose` permission and every `compose`,
+`composeAction`, `menus` and `scripting` call pass. It lints the built `.xpi`
+rather than the checkout, so what it reads is what ships.
 
-Zero errors is the bar. Warnings are not, and cannot be: the linter knows
-Firefox, so the MailExtension APIs this add-on exists to call - the `compose`
-permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` - all
-read to it as unsupported. Skim the list rather than trusting the exit code; it
-is short enough to know by heart, and a new entry is worth a look.
+The exit code is the bar, and CI fails the build on it. Nothing is skimmed:
+`0` means no error-severity finding, and the info-severity findings that are
+printed alongside are few and all real. This replaced addons-linter, which
+knows Firefox and reported this add-on's entire reason for existing as an
+unsupported API, which is why its warnings could never be made to fail
+anything.
+
+The script fetches the linter into `.webext-linter/` the first time it runs,
+pinned to a commit in `scripts/lint.sh` and bootstrapped with its own `npm`,
+because the tool publishes no tags and is not on npm yet. It and its schema
+cache are both ignored and never packaged; nothing else here uses npm.
+
+Three things about the output that will look wrong the first time:
+
+- **It is written as a reviewer's reply to a submission.** This add-on is
+  submitted nowhere, so the manual-review sections at the end are addressed to
+  a reviewer who does not exist. The Issues section is the part to read.
+- **It lints against the current release, not the floor.** The channel comes
+  from `strict_max_version`, and the manifest deliberately names none so that
+  updates keep reaching newer Thunderbirds, so every run says
+  `schema release-mv3`. The `128.0` floor is checked separately and better, by
+  the `strict-min-version-api` check: a call newer than the declared minimum
+  is an error. Do not add a `strict_max_version` to move the channel.
+- **Two checks are skipped, and only two.** `update-url`, because serving its
+  own updates is why this add-on is unlisted, and `unused-files`, because an
+  upstream path-parsing bug makes it report the vendored highlight.js licence
+  as dead weight. The reasons are written out in `scripts/lint.sh`.
+
+One info finding is standing rather than new: both `src/compose/insert-into-body.js`
+and the vendored highlight.js insert markup through `.innerHTML`, which
+Thunderbird stops permitting after ESR 153. The supported replacement,
+`Element.setHTML()`, needs Thunderbird 148, which is above this add-on's floor
+of 128 - so this waits on the floor moving rather than on someone noticing it.
 
 ## Developing
 

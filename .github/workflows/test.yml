@@ -27,6 +27,24 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Caches the schema zips the linter downloads, which is the slow part of
+      # `pnpm run lint`. They come from branch heads rather than tags, so a
+      # cache that never expired would freeze the schema train at whenever it
+      # was first written; the key therefore carries the ISO week. Inside a week
+      # the fetch is free, and the first run of each week picks up whatever the
+      # annotated-schemas branches say now. Deliberately no restore-keys - a
+      # prefix match would hand back last week's entry and undo the rotation.
+      # The hash of lint.sh is in the key because the pinned linter commit and
+      # the cache layout are both decided in there.
+      - name: This week's cache key
+        id: linter-cache
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: .webext-linter-cache
+          key: webext-linter-${{ hashFiles('scripts/lint.sh') }}-${{ steps.linter-cache.outputs.week }}
+
       - run: pnpm test
 
       # The release job reads the archive path off this script's stdout and
@@ -40,3 +58,13 @@ jobs:
           unzip -Z1 "$xpi" | grep -qx 'manifest.json'
           json="$(node scripts/build-updates-json.mjs "$xpi")"
           test -f "$json"
+
+      # Fails the build on an error-severity finding - that is the whole point
+      # of the linter knowing Thunderbird rather than Firefox, and it is just
+      # the exit code, with nothing to parse. It runs after the archive check
+      # because it builds the archive too, so a packaging break should be
+      # reported as one. The release workflow does not repeat it: this job runs
+      # on every push to main, so no commit reaches a tag unlinted, and a
+      # release should not be able to fail on a tarball download.
+      - name: Lint the archive against Thunderbird's schemas
+        run: pnpm run lint

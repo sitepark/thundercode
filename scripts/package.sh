@@ -45,8 +45,15 @@ exclusions=(
   'tests/*'
   'vitest.config.js'
   'coverage/*'
-  # This script and anything else that builds rather than ships.
+  # Release tooling. git-cliff renders the release notes at publish time and
+  # nothing at runtime reads its config; it shipped in the archive until
+  # Thunderbird's linter noticed it sitting there unreferenced.
+  'cliff.toml'
+  # This script and anything else that builds rather than ships, including the
+  # linter scripts/lint.sh fetches and the caches it fills.
   'scripts/*'
+  '.webext-linter/*'
+  '.webext-linter-cache/*'
   # Its own output, and any archive left at the root by an earlier convention.
   'dist/*'
   '*.xpi'
