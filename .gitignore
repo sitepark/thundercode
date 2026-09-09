@@ -1,6 +1,7 @@
 node_modules/
 
-# Packaged extension artifacts (see issue 12)
+# Packaged extension artifacts. Built by scripts/package.sh, which prints the
+# path it wrote; nothing here is committed.
 *.xpi
 dist/
 

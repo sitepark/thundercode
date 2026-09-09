@@ -1,11 +1,13 @@
 # Release checklist
 
 The suite can open a compose window now. What it cannot do is look at one, so
-this file is what is left: claims about Thunderbird, and claims about what
-something looks like. Everything that was a claim about this add-on's own logic
-has moved into the tests, and the first section lists what that took with it -
-not as items to work through, but so that a failure there is recognisable as a
-checklist item failing rather than as a test being fussy.
+this file is what is left: claims about Thunderbird, claims about what
+something looks like, and one section of claims about the release itself that
+only exist after it has been published. Everything that was a claim about this
+add-on's own logic has moved into the tests, and the first section lists what
+that took with it - not as items to work through, but so that a failure there
+is recognisable as a checklist item failing rather than as a test being
+fussy.
 
 Run it before every tag, on **both** supported Thunderbird versions:
 
@@ -58,6 +60,11 @@ unless another file is named:
   which is what made them safe to stop looking at.
 - Correcting the detected language and the preview following it, in
   `tests/dom/popup.test.js`.
+- The update manifest being keyed by the id this add-on's manifest declares,
+  in `tests/node/updates.test.js`. That was the "Update manifest did not
+  contain an entry for …" line to look for in the Error Console after an
+  update check, which is the only symptom a mismatch has - and it is a claim
+  about a file this repo generates rather than about Thunderbird reading it.
 
 ## Insertion
 
@@ -107,7 +114,14 @@ unless another file is named:
       path a temporary install exercises.
 - [ ] The Add-ons Manager shows the ThunderCode icon, not a puzzle piece.
 
-## Updates
+## After publishing
+
+The one section here that is not about Thunderbird, said out loud rather than
+filed as though it were. These are claims about GitHub and about this repo's
+own release workflow, and the reason they survive the split is not that a test
+could not make them - it is that there is nothing to make them against until
+the workflow has run and published something. A person looking at the release
+that just went out is the only thing that can see them.
 
 - [ ] The published release is **not** a draft and **not** a prerelease. The
       workflow sets both false, so this is a check that nobody edited the
@@ -117,15 +131,20 @@ unless another file is named:
 - [ ] `main` now holds the *next* version, pushed by the workflow's bump
       commit. If it still holds the released one, the bump step failed and the
       next release will refuse to start.
-- [ ] `updates.json` is attached to the release alongside the `.xpi`, and
-      <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
-      returns it.
+- [ ] <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
+      returns the new version. What that URL *says* is pinned by
+      `tests/node/updates.test.js`, and that the file builds at all is checked
+      on every push by the test workflow; what neither can see is whether the
+      release carries it. That URL is baked into every installed copy, so a
+      release published without the asset leaves all of them polling a 404 and
+      never hearing about the update.
 
-The rest is only meaningful once a previous release exists.
+## Updating an installed copy
+
+Thunderbird's half of an update - the daily check, the download and the
+install - against a real one. Only meaningful once a previous release exists.
 
 - [ ] Set `extensions.logging.enabled` to `true` in the config editor first;
       update failures are otherwise completely silent.
 - [ ] With the previous version installed, force a check from the Add-ons
       Manager gear menu and confirm it upgrades to the new one.
-- [ ] The Error Console shows no "Update manifest did not contain an entry for
-      …" line.

@@ -83,10 +83,15 @@ Three things about the output that will look wrong the first time:
   `schema release-mv3`. The `128.0` floor is checked separately and better, by
   the `strict-min-version-api` check: a call newer than the declared minimum
   is an error. Do not add a `strict_max_version` to move the channel.
-- **Two checks are skipped, and only two.** `update-url`, because serving its
-  own updates is why this add-on is unlisted, and `unused-files`, because an
-  upstream path-parsing bug makes it report the vendored highlight.js licence
-  as dead weight. The reasons are written out in `scripts/lint.sh`.
+- **Two checks are skipped and one lookup is off, and that is all.**
+  `update-url`, because serving its own updates is why this add-on is
+  unlisted, and `unused-files`, because an upstream path-parsing bug makes it
+  report the vendored highlight.js licence as dead weight. The lookup is
+  `--cdn-lib-lookup`, which identifies a bundled library by asking third-party
+  CDNs for its content hash: the only bundled library here is a hand-modified
+  highlight.js, so no hash can match it by construction and leaving it on only
+  makes the run depend on four hosts being up. All three reasons are written
+  out in `scripts/lint.sh`.
 
 One info finding is standing rather than new: both `src/compose/insert-into-body.js`
 and the vendored highlight.js insert markup through `.innerHTML`, which
@@ -115,6 +120,7 @@ does not reach one that is already open.
 ```sh
 pnpm test               # both automated tiers
 pnpm test:node          # the pure tier alone, for a fast edit loop
+pnpm test:watch         # both automated tiers, rerunning as files change
 pnpm test:thunderbird   # the real-Thunderbird tier; see below
 pnpm coverage           # a report; nothing is gated on it
 ```
@@ -196,7 +202,9 @@ of the harness.
 
 What is still checked by hand is anything that is a claim about Thunderbird
 rather than about this project's own logic; that list is
-`docs/release-checklist.md`, which now starts by running the two commands above.
+`docs/release-checklist.md`, which now opens with three commands - `pnpm test`,
+this one, and this one again with `THUNDERBIRD_BINARY` pointed at an installed
+Thunderbird - and only then reaches the items a person has to look at.
 
 ## Commit messages
 
