@@ -79,9 +79,42 @@ popup. Compose scripts are injected per compose window, so changes under
 `src/compose/` need the compose window reopened as well - reloading the add-on
 does not reach one that is already open.
 
-Run the tests with `pnpm test`. They cover the manifest, the update manifest,
-the version arithmetic and the HTML builder; everything that needs a running
-compose window is checked by hand against `docs/release-checklist.md`.
+### Running the tests
+
+```sh
+pnpm test        # both automated tiers
+pnpm test:node   # the pure tier alone, for a fast edit loop
+pnpm coverage    # a report; nothing is gated on it
+```
+
+The suite is split into tiers, and which one a test belongs in is decided by
+where it can be written rather than by what it is about:
+
+| Tier | Directory | Environment |
+| --- | --- | --- |
+| `node` | `tests/node/` | no DOM at all |
+| `dom` | `tests/dom/` | a simulated document, via jsdom |
+| `thunderbird` | `tests/thunderbird/` | a real Thunderbird, driven headless |
+
+`pnpm test` runs the first two. The third needs a Thunderbird to drive, so it
+is a local command run while working the checklist, not part of the default run
+and not part of CI.
+
+The `node` tier has no document on purpose: a test that reaches for one there
+fails rather than passing, which is what has kept the code-block pipeline from
+quietly growing a dependency on a DOM. Wanting a document means moving the file
+into `tests/dom/`, which is a change someone can see. Anything dropped straight
+into `tests/` without picking a tier runs in `node`, so the strict tier is the
+default rather than something to remember.
+
+Coverage is reported and never gated - there is no threshold and there will not
+be one. The reasoning behind all of this, including the alternatives that were
+turned down, is in
+[docs/adr/0001-three-test-tiers.md](docs/adr/0001-three-test-tiers.md).
+
+What is still checked by hand is anything that is a claim about Thunderbird
+rather than about this project's own logic; that list is
+`docs/release-checklist.md`.
 
 ## Commit messages
 
