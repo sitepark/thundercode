@@ -4,8 +4,8 @@ import { nextVersion } from "../../scripts/bump-version.mjs";
 
 /**
  * The release workflow calls this and pushes the result to `main`, unreviewed.
- * Whatever it produces becomes the version in the next release's update
- * manifest, which every installed copy compares itself against.
+ * Whatever it produces is the version being released, and the one in the
+ * update manifest that every installed copy compares itself against.
  */
 describe("nextVersion", () => {
   it("raises each part on its own", () => {

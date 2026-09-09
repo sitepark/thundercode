@@ -1,10 +1,11 @@
-# Publishes a release and opens the next version. Run it by hand from the
-# Actions tab; there is no automatic trigger.
+# Publishes a release. Run it by hand from the Actions tab; there is no
+# automatic trigger.
 #
-# The version in manifest.json is what gets released - this workflow never
-# chooses it. It tags that version, publishes it, and only then raises the
-# manifest to the next one, so `main` always sits on an unreleased version and
-# the tag always names a commit where the manifest agreed with it.
+# The bump chosen at dispatch is what this release raises: `main` sits on the
+# last released version, and the workflow raises it, commits that, tags the
+# commit and publishes it. So the tag always names a commit where the manifest
+# agreed with it, and the choice is made in front of the commits that actually
+# landed rather than predicted at the end of the previous release.
 #
 # Why the tag is created by the release rather than pushed first: a tag pushed
 # with the default GITHUB_TOKEN does not trigger workflows, so a `on: push:
@@ -20,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "Which part to raise for the next development version"
+        description: "Which part this release raises"
         type: choice
         options:
           - minor
@@ -41,8 +42,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      # Full history and tags: the guard below asks git whether this version
-      # has already been released, which a shallow clone cannot answer.
+      # Full history and tags: the guards below ask git which versions have
+      # been released, which a shallow clone cannot answer.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -57,10 +58,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Read the version being released
-        id: version
-        run: echo "version=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
-
       - name: Refuse to release from anywhere but main
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
@@ -68,11 +65,38 @@ jobs:
             exit 1
           fi
 
+      # Between releases the manifest holds the version of the last one. An
+      # untagged version here means a previous run pushed its release commit
+      # and then failed before publishing: raising on top of it would leave
+      # that version in history having never shipped, so it wants a person
+      # rather than a retry - publish the missing release, or reset the
+      # manifest to the last tag.
+      - name: Refuse to release unless main sits on the last released version
+        run: |
+          current="$(node -p "require('./manifest.json').version")"
+          if ! git rev-parse -q --verify "refs/tags/$current" >/dev/null; then
+            echo "manifest.json holds '$current', which is not tagged - main is not on a released version" >&2
+            exit 1
+          fi
+
+      # Writes the raised version into manifest.json. Everything after this is
+      # built from the tree it produced - the notes, the archive, the update
+      # manifest - and the commit near the end is what gets tagged. Nothing
+      # has left the runner yet, so the guard below still costs nothing.
+      - name: Raise the version being released
+        id: version
+        run: |
+          previous="$(node -p "require('./manifest.json').version")"
+          version="$(node scripts/bump-version.mjs '${{ inputs.bump }}')"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version, a ${{ inputs.bump }} bump on $previous."
+
       - name: Refuse to release a version that is already tagged
         run: |
           version='${{ steps.version.outputs.version }}'
           if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
-            echo "Tag '$version' already exists - the manifest was not bumped after the last release" >&2
+            echo "Tag '$version' already exists - a '${{ inputs.bump }}' bump lands on a version that has been released" >&2
             exit 1
           fi
 
@@ -110,12 +134,29 @@ jobs:
         run: |
           echo "json=$(node scripts/build-updates-json.mjs '${{ steps.package.outputs.xpi }}')" >> "$GITHUB_OUTPUT"
 
+      # Before publishing, because the tag is created at this commit and
+      # GitHub cannot tag one it does not have. It is also the last step that
+      # can fail with nothing having shipped: everything above this line runs
+      # against the runner's own copy.
+      - name: Commit the released version
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Release ${{ steps.version.outputs.version }}" \
+                     -m "A ${{ inputs.bump }} bump on ${{ steps.version.outputs.previous }}."
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Publish
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
-          target_commitish: ${{ github.sha }}
+          # The commit pushed above, not the one the run started from: that
+          # one still holds the previous version in its manifest.
+          target_commitish: ${{ steps.commit.outputs.sha }}
           files: |
             ${{ steps.package.outputs.xpi }}
             ${{ steps.updates.outputs.json }}
@@ -125,16 +166,3 @@ jobs:
           make_latest: "true"
           draft: false
           prerelease: false
-
-      # Last, deliberately. If anything above fails the manifest still holds
-      # the version that failed to release, so a fixed re-run releases it
-      # rather than skipping it.
-      - name: Open the next version
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          next="$(node scripts/bump-version.mjs '${{ inputs.bump }}')"
-          git add manifest.json
-          git commit -m "Open $next for development" \
-                     -m "Released ${{ steps.version.outputs.version }}."
-          git push origin HEAD:main

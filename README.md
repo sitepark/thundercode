@@ -256,21 +256,24 @@ changelog line means amending the commit, not editing a file.
 
 ## Releasing
 
-The version in `manifest.json` is what gets released; the workflow never
-chooses it. Releasing is running an action, not pushing a tag.
+`main` sits on the last released version, and the bump chosen when the action
+is dispatched is what this release raises. Releasing is running an action, not
+pushing a tag.
 
 1. `pnpm changelog` and read it. This is the release body, and the last
    chance to fix a vague line by amending the commit it came from.
 2. Run `docs/release-checklist.md` - the action publishes immediately, so this
    is the last point at which nothing has shipped.
-3. **Actions ▸ Release ▸ Run workflow**, on `main`. Leave the bump at `minor`
-   unless the next cycle is a patch or a major.
+3. **Actions ▸ Release ▸ Run workflow**, on `main`. The bump describes what
+   just landed: `minor` for features, `patch` for fixes alone, `major` for a
+   break. The changelog you read in step 1 is what answers it.
 
-The workflow refuses to start unless it is on `main` and the version is not
-already tagged. It then runs the tests, builds the archive, generates `updates.json` from the manifest and the
-archive's digest, publishes both under a tag it creates itself with the notes
-as the release body, and finally raises `manifest.json` to the next version
-and pushes that to `main`.
+The workflow refuses to start unless it is on `main` and the manifest's
+version is tagged - that is, unless `main` really is sitting on a released
+version. It raises `manifest.json` by the chosen bump, runs the tests, builds
+the archive, generates `updates.json` from the manifest and the archive's
+digest, commits and pushes the raised version, and publishes both files under
+a tag it creates on that commit with the notes as the release body.
 
 Empty notes do not stop it. They mean every commit in the cycle was an
 internal type, and the workflow prints why the body is blank and publishes
@@ -279,10 +282,19 @@ there, because a release with nothing to say about it is usually one worth
 skipping, and if something user-facing did land it was committed under the
 wrong type.
 
-So `main` always sits on an unreleased version, and every tag names a commit
-where the manifest agreed with it. The bump comes last on purpose: if anything
-fails, the manifest still holds the version that failed to release, so a fixed
-re-run releases it rather than skipping it.
+Every tag names a commit where the manifest agreed with it, which is why the
+commit is pushed before the release is published: GitHub creates the tag at
+that commit. Everything before that runs on the runner's own copy, so a
+failing test or a bad build leaves `main` untouched and a fixed re-run
+releases the same version. The one gap is a failure between the push and the
+publish; the next run refuses to start there rather than raising on top of a
+version that never shipped.
+
+One consequence of deciding the bump at release time: until the action runs,
+`manifest.json` still holds the previous version, so an archive you build
+locally - the one `docs/release-checklist.md` has you install - carries that
+number. The workflow builds the archive that ships after raising the version,
+so what differs between the two is the version string.
 
 Two things the workflow depends on and cannot recover from:
 

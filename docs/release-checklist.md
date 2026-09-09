@@ -132,9 +132,10 @@ that just went out is the only thing that can see them.
       release afterwards: `releases/latest` skips both, and either one leaves
       every installed copy pointed at the previous version while the archive
       sits there looking published.
-- [ ] `main` now holds the *next* version, pushed by the workflow's bump
-      commit. If it still holds the released one, the bump step failed and the
-      next release will refuse to start.
+- [ ] `main` holds the released version, in a `Release <version>` commit
+      pushed by the workflow, and the tag names that commit. If `main` still
+      holds the previous version, the release was published from a commit that
+      never reached it and the next release will refuse to start.
 - [ ] <https://github.com/sitepark/thundercode/releases/latest/download/updates.json>
       returns the new version. What that URL *says* is pinned by
       `tests/node/updates.test.js`, and that the file builds at all is checked

@@ -5,9 +5,10 @@
 // Usage: node scripts/bump-version.mjs <major|minor|patch>
 //
 // This exists as a script rather than a sed expression in the release
-// workflow because it is the one step that writes to `main`. A malformed
-// version reaches every installed copy through the update manifest, and
-// "it looked right in the YAML" is not a test.
+// workflow because what it prints is the version being released, and what it
+// writes is pushed to `main` and tagged. A malformed version reaches every
+// installed copy through the update manifest, and "it looked right in the
+// YAML" is not a test.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -32,7 +33,7 @@ export function nextVersion(version, part) {
 
   const [major, minor, patch] = version.split(".").map(Number);
 
-  // Raising a part zeroes the ones below it: 1.4.2 with a minor bump opens
+  // Raising a part zeroes the ones below it: a minor bump on 1.4.2 releases
   // 1.5.0, not 1.5.2.
   if (part === "major") return `${major + 1}.0.0`;
   if (part === "minor") return `${major}.${minor + 1}.0`;
