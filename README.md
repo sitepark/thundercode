@@ -1,5 +1,7 @@
 # ThunderCode
 
+<img src="docs/logo.png" alt="ThunderCode logo" width="160">
+
 A Thunderbird MailExtension that inserts syntax-highlighted code blocks into
 HTML messages.
 
