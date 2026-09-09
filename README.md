@@ -31,6 +31,13 @@ attached to the most recent release about once a day and upgrades in place;
 there is nothing to re-download by hand. Open a compose window and the button
 appears in the format toolbar.
 
+Code blocks go into **HTML compose windows only**. Thunderbird hides the format
+toolbar in a plain-text composer, and the button lives in that toolbar, so there
+is nothing to click - and the add-on keeps its context-menu item out of a
+plain-text composer for the same reason, rather than offering an insert it
+cannot carry out. Which editor a composer gets is the account's own setting,
+and holding Shift as you start a message opens the other one for that message.
+
 ## Building the archive
 
 You do not need this to use the add-on - releases are built by CI from a tag.
@@ -191,14 +198,14 @@ console. That is `tests/thunderbird/insertion.test.js`, and every assertion in
 it used to be a line on the release checklist.
 
 The harness itself is `tests/thunderbird/harness/`, and its interface is
-documented in `tests/thunderbird/harness/index.js` - including four limits
-found while building it, which are worth reading before writing a test that
-runs into them. The popup's document cannot be read from outside; the popup has
+documented in `tests/thunderbird/harness/index.js` - including four things
+worth reading before writing a test that runs into them. The popup's document cannot be read from outside; the popup has
 to be handed the keyboard before it hears anything, and a test that forgets can
 pass while asserting nothing; a letter-key shortcut cannot be delivered to
 Thunderbird 128 by synthesised input; and the popup cannot be opened in a
-plain-text composer at all, which is a defect in the add-on rather than a limit
-of the harness.
+plain-text composer at all, which is the add-on's scope rather than a limit of
+the harness - it offers no route in there, so a test of the plain-text insert
+has to reach past that by hand.
 
 What is still checked by hand is anything that is a claim about Thunderbird
 rather than about this project's own logic; that list is
