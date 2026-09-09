@@ -43,9 +43,13 @@ unless another file is named:
 - `&`, `<`, `>` and `"` in the source reaching the message as those characters.
 - The popup closing when the insert lands.
 - A plain-text composer receiving the source as text with no markup in it.
-  The test unhides the format toolbar to get there, because as things stand the
-  popup cannot be opened in a plain-text composer at all - issue #12. What is
-  covered is the insert; what is broken is reaching it.
+  The test unhides the format toolbar to get there, because the add-on offers a
+  plain-text composer no route to the popup and is not meant to: it inserts into
+  HTML mail. What is covered is the insert; reaching it is not something a user
+  can do.
+- The context-menu item being in an HTML composer's body menu and not in a
+  plain-text composer's, which is the one route that could have offered an
+  insert nothing could carry out.
 - The shortcut inserting exactly what the button inserts, and the manifest's
   `Ctrl+Shift+C` having become the key element Thunderbird derives from it.
   **Delivering that key press is not covered** - see the first item under

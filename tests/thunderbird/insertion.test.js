@@ -353,9 +353,9 @@ describe("a right-click carrying a selection", () => {
       // The add-on's item, in Thunderbird's own context menu for the message
       // body, found by the prefix the extension framework gives it. Its id is
       // the background's and is not exported, so the prefix is what there is;
-      // one item is what this add-on creates.
-      const [item, ...rest] = await compose.openBodyContextMenu();
-      expect(rest).toEqual([]);
+      // one item is what this add-on creates, and waiting for exactly one is
+      // how the menu is read after the add-on has had its say about it.
+      const [item] = await compose.openBodyContextMenu({ expecting: 1 });
       expect(item.label).toBeTruthy();
 
       await compose.activateMenuItem(item.id);
@@ -396,36 +396,72 @@ describe("a right-click carrying a selection", () => {
   });
 });
 
+describe("the item in the compose body's context menu", () => {
+  /**
+   * Both halves in one test, because they are one decision made in one place:
+   * the same `menus.onShown` handler shows the item and withholds it, and a
+   * test that only saw the plain-text half would pass just as well against an
+   * add-on that had no menu item left at all.
+   *
+   * The HTML composer goes first, and that order is the assertion's other
+   * half. The item's visibility is one piece of state shared by every window,
+   * so the menu below leaves it visible - and the plain-text menu then has to
+   * take the item out rather than finding it already gone.
+   */
+  it("is offered in an HTML composer and withheld from a plain-text one", async () => {
+    const html = await session.openCompose();
+    const plainText = await session.openCompose({ format: "plaintext" });
+    try {
+      for (const compose of [html, plainText]) {
+        await compose.typeIntoBody("before SELECTED after");
+        await compose.selectInBody("SELECTED");
+      }
+
+      const [item] = await html.openBodyContextMenu({ expecting: 1 });
+      expect(item.label).toBeTruthy();
+      await html.closeBodyContextMenu();
+
+      // Nothing of this add-on's in the menu: not a disabled item and not a
+      // greyed one, because either still advertises an insert that no route
+      // in this composer can carry out.
+      expect(await plainText.openBodyContextMenu({ expecting: 0 })).toEqual([]);
+      await plainText.closeBodyContextMenu();
+    } finally {
+      await plainText.close();
+      await html.close();
+    }
+  });
+});
+
 describe("a plain-text composer", () => {
   /**
-   * A plain-text composer cannot open this add-on's popup at all, and that is
-   * a defect in the add-on rather than a limit of this harness. It is filed as
-   * issue #12.
+   * A plain-text composer has no route into this add-on's popup, and that is
+   * the add-on's scope rather than a limit of this harness.
    *
    * `compose_action.default_area` is `formattoolbar`, and Thunderbird hides
    * the format toolbar in a plain-text composer - there is no formatting to
    * offer. The popup is anchored to that button (`triggerAction` in
    * `ExtensionToolbarButtons.sys.mjs` calls
    * `openPopup(button, "bottomleft topleft")`), so with the button in a hidden
-   * toolbar the panel opens and rolls straight back up. Every route in goes
-   * through that same call, so the button, `Ctrl+Shift+C` and the right-click
-   * item all fail the same way. Confirmed on a real X server as well as
-   * headless, so it is not a headless artefact.
+   * toolbar the panel would open and roll straight back up. Every route goes
+   * through that same call, which is why there is no route: the button is
+   * hidden with its toolbar, `Ctrl+Shift+C` is inert, and the context-menu
+   * item is kept out of the menu - the test above.
    *
-   * What is broken is reaching the popup, and what this test is about is what
-   * happens after that - a different editor receiving text rather than markup.
-   * So the toolbar is unhidden for the length of the test, which changes
-   * nothing about the insert: the same button, the same popup, the same
-   * `scripting.executeScript` into the same composer. When the add-on is fixed
-   * this call comes out and nothing else here changes.
+   * So this call is permanent. What it reveals is the button, for the length
+   * of one test, and it changes nothing about the insert it makes possible:
+   * the same button, the same popup, the same `scripting.executeScript` into
+   * the same composer. It is here because the plain-text insert is code this
+   * add-on still has - a different editor taking text rather than markup - and
+   * this tier is the only place that can watch it run.
    */
   const revealTheButton = (compose) =>
     compose.chrome(
       `const [toolbarId] = arguments;
        document.getElementById(toolbarId).hidden = false;`,
-      // The toolbar the manifest asks for, not the literal, so that moving the
-      // button to the compose toolbar - which is one of the ways issue #12
-      // could be fixed - makes this a harmless no-op instead of a lie.
+      // The toolbar the manifest asks for, not the literal, so that a button
+      // that ever moves to the compose toolbar makes this a harmless no-op
+      // instead of a lie.
       ACTION_TOOLBAR_ID,
     );
 

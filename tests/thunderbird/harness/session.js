@@ -498,10 +498,47 @@ class ComposeWindow {
     return this.findInBody(text, { collapseAfter: true });
   }
 
+  /** True while Thunderbird's compose context menu is on screen. */
+  async bodyContextMenuIsOpen() {
+    return this.chrome(
+      `const [menuId] = arguments;
+       return document.getElementById(menuId)?.state === "open";`,
+      COMPOSE_CONTEXT_MENU_ID,
+    );
+  }
+
+  /**
+   * This add-on's items in the compose context menu as it is drawn right now,
+   * found by the prefix the extension framework gives them.
+   *
+   * Hidden items are left out, because "in the menu" here means what a person
+   * would see: an item the add-on has asked to hide is still an element in the
+   * popup, and counting it would make withholding the item look the same as
+   * offering it.
+   */
+  async addonMenuItems() {
+    return this.chrome(
+      `const [menuId, prefix] = arguments;
+       return Array.from(document.getElementById(menuId).querySelectorAll("menuitem"))
+         .filter((item) => item.id.startsWith(prefix) && !item.hidden)
+         .map((item) => ({ id: item.id, label: item.getAttribute("label") }));`,
+      COMPOSE_CONTEXT_MENU_ID,
+      MENU_ITEM_ID_PREFIX,
+    );
+  }
+
   /**
    * Right-clicks the current selection in the message body, waits for
    * Thunderbird's compose context menu, and answers with this add-on's items
-   * in it.
+   * in it once there are `expecting` of them.
+   *
+   * The count is not a convenience. Whether this add-on's item belongs in this
+   * menu is decided after the menu is already on screen - `menus.onShown` asks
+   * the composer what format it is in and calls `menus.refresh()` with the
+   * answer - so a menu read the moment it opens still shows what the last one
+   * left behind. Saying how many items are expected is what makes that a wait
+   * rather than a race, and a count that never arrives fails as a timeout
+   * naming the number it wanted.
    *
    * A real widget-level event, synthesised into the editor's own window at the
    * selection's coordinates. Not a `dispatchEvent`: the menu is built from
@@ -511,7 +548,7 @@ class ComposeWindow {
    * a selection that a right-click misses, and the selection is the whole
    * subject here.
    */
-  async openBodyContextMenu() {
+  async openBodyContextMenu({ expecting }) {
     await this.chrome(`
       const editor = GetCurrentEditor();
       const view = editor.document.defaultView;
@@ -526,20 +563,37 @@ class ComposeWindow {
       );
     `);
     await waitFor(`the ${COMPOSE_CONTEXT_MENU_ID} menu to open`, () =>
-      this.chrome(
-        `const [menuId] = arguments;
-         return document.getElementById(menuId)?.state === "open";`,
-        COMPOSE_CONTEXT_MENU_ID,
-      ),
+      this.bodyContextMenuIsOpen(),
     );
-    return this.chrome(
-      `const [menuId, prefix] = arguments;
-       return Array.from(document.getElementById(menuId).querySelectorAll("menuitem"))
-         .filter((item) => item.id.startsWith(prefix))
-         .map((item) => ({ id: item.id, label: item.getAttribute("label") }));`,
+
+    let items;
+    await waitFor(
+      `${expecting} of the add-on's items in the ${COMPOSE_CONTEXT_MENU_ID} menu`,
+      async () => {
+        items = await this.addonMenuItems();
+        return items.length === expecting;
+      },
+    );
+    return items;
+  }
+
+  /**
+   * Dismisses the menu without activating anything - the ending
+   * `activateMenuItem` provides for the tests that do activate something. A
+   * test that only looked at the menu still has to close it: a context menu
+   * left open is a popup that whatever comes next has to open behind.
+   */
+  async closeBodyContextMenu() {
+    await this.chrome(
+      `const [menuId] = arguments;
+       document.getElementById(menuId).hidePopup();`,
       COMPOSE_CONTEXT_MENU_ID,
-      MENU_ITEM_ID_PREFIX,
     );
+    await waitFor(
+      `the ${COMPOSE_CONTEXT_MENU_ID} menu to close`,
+      async () => !(await this.bodyContextMenuIsOpen()),
+    );
+    return this;
   }
 
   /**
@@ -563,12 +617,9 @@ class ComposeWindow {
       COMPOSE_CONTEXT_MENU_ID,
       id,
     );
-    await waitFor(`the ${COMPOSE_CONTEXT_MENU_ID} menu to close`, () =>
-      this.chrome(
-        `const [menuId] = arguments;
-         return document.getElementById(menuId)?.state !== "open";`,
-        COMPOSE_CONTEXT_MENU_ID,
-      ),
+    await waitFor(
+      `the ${COMPOSE_CONTEXT_MENU_ID} menu to close`,
+      async () => !(await this.bodyContextMenuIsOpen()),
     );
     return this;
   }

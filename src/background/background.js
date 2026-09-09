@@ -12,9 +12,10 @@ import { TAKE_PENDING_SELECTION } from "../messaging/take-pending-selection.js";
  *
  * 1. This file's scope is re-executed every time an event wakes the page, so
  *    top-level work must be safe to repeat.
- * 2. Anything held in module scope is lost when the page is suspended. The one
- *    piece of state here - the parked selection - is written and read within a
- *    single user gesture, which is the only lifetime it can rely on.
+ * 2. Anything held in module scope is lost when the page is suspended. Both
+ *    pieces of state here - the parked selection and the menu that is open -
+ *    are written and read within a single user gesture, which is the only
+ *    lifetime either can rely on.
  */
 
 /**
@@ -37,6 +38,27 @@ const MENU_ID = "thundercode-insert-code-block";
 const pendingSelections = new Map();
 
 /**
+ * How many menus have opened since this page was woken, which is only ever
+ * read as a way of telling one of them from the next.
+ */
+let menusOpened = 0;
+
+/**
+ * Which of those menus is on screen, and zero when none is.
+ *
+ * Deciding whether the item belongs in a menu means asking the composer what
+ * format it is in, and the menu is already drawn by the time the answer comes
+ * back. Without this, an answer that arrives late would set the item's
+ * visibility for whichever menu is open by then - so a menu the add-on has
+ * nothing to say about would be handed the previous one's answer.
+ *
+ * Module scope, so both of these are lost when the event page is suspended.
+ * That costs nothing: a menu cannot outlive the page that is being woken to
+ * answer it.
+ */
+let menuOnScreen = 0;
+
+/**
  * Creating the item at file scope means it exists as soon as the page runs,
  * which on an event page is also every time it is woken. The duplicate-id error
  * that follows a second creation is expected and is the only error swallowed
@@ -53,6 +75,13 @@ function createMenu() {
       // would also match selections in the message reader and put the item in
       // menus that have no composer to insert into.
       contexts: ["compose_body"],
+
+      // Hidden until a composer has been asked what format it is in, which is
+      // what `menus.onShown` below does. Created visible instead, the item
+      // would be in the menu for as long as that answer takes to arrive - and
+      // the composer where a false offer costs something is precisely the one
+      // where the answer is "plain text".
+      visible: false,
     },
     () => void browser.runtime.lastError,
   );
@@ -65,8 +94,74 @@ createMenu();
 // before the user opens their first composer.
 browser.runtime.onStartup.addListener(createMenu);
 
+/**
+ * Whether this composer is one the add-on can put a code block into.
+ *
+ * The block goes in as markup, and the popup is reached through a button in
+ * the format toolbar - which Thunderbird hides in a plain-text composer, there
+ * being no formatting to offer. So a plain-text composer is a composer this
+ * add-on has nothing to do in, and the honest thing is to offer it nothing.
+ *
+ * A tab that cannot be asked - it has closed, or was never a composer -
+ * answers the same way. An offer this add-on could not check is one it cannot
+ * promise to keep.
+ */
+async function canTakeACodeBlock(tabId) {
+  try {
+    const { isPlainText } = await browser.compose.getComposeDetails(tabId);
+    return !isPlainText;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The item's visibility, decided per menu rather than once at creation.
+ *
+ * `onShown` fires for every menu this add-on could have an item in, including
+ * menus it has nothing in, so the context is checked before anything is
+ * touched: the item is one piece of state shared by every window, and an
+ * update made on behalf of a menu it is not in would be waiting in the next
+ * menu it is.
+ *
+ * `refresh` is the half without which none of this is visible. The menu is
+ * already on screen when this runs, so an item whose visibility has just
+ * changed keeps being drawn the old way until the menu is rebuilt.
+ */
+browser.menus.onShown.addListener(async (info, tab) => {
+  if (!info.contexts.includes("compose_body") || !tab) {
+    return;
+  }
+
+  const menu = ++menusOpened;
+  menuOnScreen = menu;
+
+  const visible = await canTakeACodeBlock(tab.id);
+  if (menuOnScreen !== menu) {
+    return;
+  }
+
+  await browser.menus.update(MENU_ID, { visible });
+  await browser.menus.refresh();
+});
+
+browser.menus.onHidden.addListener(() => {
+  menuOnScreen = 0;
+});
+
 browser.menus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID || !tab) {
+    return;
+  }
+
+  // Asked again rather than taken on trust from the item being visible: that
+  // visibility is state Thunderbird holds between one menu and the next, so a
+  // click can come from a menu drawn before `onShown` above had its say.
+  // Returning before anything is parked is the whole of what this has to get
+  // right - a selection left behind here would surface in the next popup this
+  // tab opens by some other route.
+  if (!(await canTakeACodeBlock(tab.id))) {
+    pendingSelections.delete(tab.id);
     return;
   }
 
