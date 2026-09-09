@@ -3,8 +3,11 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildCodeBlockHtml } from "../../src/code-block/build-code-block-html.js";
-import { repoRoot } from "./harness/pins.js";
-import { ACTION_TOOLBAR_ID, startThunderbird } from "./harness/session.js";
+import {
+  ACTION_TOOLBAR_ID,
+  repoRoot,
+  startThunderbird,
+} from "./harness/index.js";
 
 /**
  * What the add-on does, asserted instead of performed.
@@ -57,10 +60,15 @@ const PROSE = "just a sentence, no code in it at all";
 
 /**
  * The line the insertion function logs to say which of its three paths ran.
- * It is a literal in src/compose/insert-into-body.js rather than an export,
- * because the only thing that reads it is a person watching the console - the
- * popup closes before it could read the return value. This tier is the second
- * reader.
+ *
+ * Restated here rather than imported, against this suite's habit of reading
+ * expectations from the module that owns them, and the exception is the
+ * module: src/compose/insert-into-body.js is handed to the compose sandbox as
+ * a self-contained function, so it exports nothing and adding an export would
+ * cost it the property that makes it injectable. The other reason the line is
+ * a literal there is that its only reader was a person watching the console -
+ * the popup closes before it could read the return value. This tier is the
+ * second reader.
  */
 const MECHANISM_REPORT = "ThunderCode: inserted via";
 const EDITOR_COMMAND = `${MECHANISM_REPORT} execCommand`;

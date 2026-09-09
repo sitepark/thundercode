@@ -6,7 +6,7 @@
  *
  * const session = await startThunderbird();          // ~15s, or ~2min the
  * try {                                              // first time (downloads)
- *   const compose = await session.openCompose();      // { format: "plaintext" }
+ *   const compose = await session.openCompose();      // or { format: "plaintext" }
  *   await compose.focusBody();                        // caret in the body
  *   await compose.sendKeys("text");                   // real key events
  *   await compose.pressChord(Key.CONTROL, "b");       // never Key.chord
@@ -39,8 +39,8 @@
  * ```
  *
  * `session` also has `chrome()` on the main window, `appInfo()`, `addonInfo()`,
- * `updateGuards()`, `composeWindows()`, `openCompose()` and `archive` - the
- * path of the `.xpi` this run built and installed. Everything runs in
+ * `updateGuards()`, `openCompose()`, `profileDir` and `archive` - the path of
+ * the `.xpi` this run built and installed. Everything runs in
  * Marionette's chrome context, so a script sees `Services`, `ChromeUtils`, `Cc`
  * and `Ci`, and `window` is the window it was called on.
  *
@@ -61,15 +61,16 @@
  *   Thunderbird hides the toolbar this add-on's button sits in and the popup
  *   is anchored to that button. That is a defect in the add-on rather than a
  *   limit of the harness - issue #12, with the details in insertion.test.js.
+ *
+ * Every test file in this tier imports from here and not from the files
+ * behind it, so this list is what the tier actually uses: a name that stops
+ * appearing in a test comes out of here rather than staying as documentation
+ * of something nobody asks for. The one test that reaches past it is
+ * tests/node/thunderbird-harness.test.js, which covers the pins from the node
+ * tier and says there why it cannot come through a barrel that loads
+ * selenium.
  */
-export {
-  ACTION_BUTTON_ID,
-  ACTION_TOOLBAR_ID,
-  ADDON_ID,
-  MENU_ITEM_ID_PREFIX,
-  SHORTCUT_KEYSET_ID,
-  startThunderbird,
-} from "./session.js";
+export { ACTION_BUTTON_ID, ACTION_TOOLBAR_ID, startThunderbird } from "./session.js";
 export { PROFILE_PREFS, UPDATE_PREF_NAMES } from "./profile.js";
-export { resolveThunderbirdBinary } from "./provision.js";
-export { THUNDERBIRD_VERSION } from "./pins.js";
+export { THUNDERBIRD_ENV, provision, resolveThunderbirdBinary } from "./provision.js";
+export { THUNDERBIRD_VERSION, repoRoot } from "./pins.js";

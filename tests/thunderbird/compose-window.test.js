@@ -2,11 +2,16 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ACTION_BUTTON_ID, ACTION_TOOLBAR_ID } from "./harness/session.js";
-import { PROFILE_PREFS, UPDATE_PREF_NAMES } from "./harness/profile.js";
-import { THUNDERBIRD_VERSION, repoRoot } from "./harness/pins.js";
-import { resolveThunderbirdBinary } from "./harness/provision.js";
-import { startThunderbird } from "./harness/session.js";
+import {
+  ACTION_BUTTON_ID,
+  ACTION_TOOLBAR_ID,
+  PROFILE_PREFS,
+  THUNDERBIRD_VERSION,
+  UPDATE_PREF_NAMES,
+  repoRoot,
+  resolveThunderbirdBinary,
+  startThunderbird,
+} from "./harness/index.js";
 
 /**
  * The third tier, and the only one that can see the add-on as a user does.

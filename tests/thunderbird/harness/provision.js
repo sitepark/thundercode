@@ -30,7 +30,13 @@ const run = promisify(execFile);
  * shape of this repo is that a contributor installs one lockfile and starts.
  */
 
-const THUNDERBIRD_ENV = "THUNDERBIRD_BINARY";
+/**
+ * The variable that points the harness at an installed Thunderbird instead of
+ * the pin. Exported because the tests that cover the override assert which
+ * variable was read, and reading that from here is what keeps renaming it a
+ * one-line change rather than a red suite.
+ */
+export const THUNDERBIRD_ENV = "THUNDERBIRD_BINARY";
 
 async function exists(target) {
   try {

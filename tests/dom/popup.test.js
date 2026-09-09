@@ -24,6 +24,20 @@ const popupPage = readFileSync(
 );
 
 /**
+ * What a successful injection answers with, as the insertion function reports
+ * it.
+ *
+ * Written out rather than imported, and this is the one place in these tests
+ * where that is deliberate: src/compose/insert-into-body.js is handed to the
+ * compose sandbox as a self-contained function, so it exports nothing and must
+ * keep exporting nothing. The popup only checks that a result came back, so
+ * the value here is a stand-in for a real report rather than something asserted
+ * against - tests/dom/insert-into-body.test.js is where the mechanism names
+ * are the subject, against the function itself.
+ */
+const INJECTION_RESULT = [{ result: { mechanism: "execCommand" } }];
+
+/**
  * The popup's clock, held still.
  *
  * `startPopup` takes the debounce's two timer functions, so nothing below waits
@@ -167,7 +181,7 @@ describe("the popup", () => {
         setComposeDetails: async () => {},
       },
       scripting: {
-        executeScript: async () => [{ result: { mechanism: "execCommand" } }],
+        executeScript: async () => INJECTION_RESULT,
       },
       // Nothing parked, which is what a toolbar or shortcut open gets.
       runtime: { sendMessage: async () => "" },
@@ -610,7 +624,7 @@ describe("the popup", () => {
       await confirm();
       expect(element("insert").disabled).toBe(true);
       await confirm();
-      injection.resolve([{ result: { mechanism: "execCommand" } }]);
+      injection.resolve(INJECTION_RESULT);
       await settle();
 
       expect(fake.calls("scripting.executeScript")).toHaveLength(1);
