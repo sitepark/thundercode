@@ -282,7 +282,7 @@ let previewGeneration = 0;
  *   pins that — so pasted markup arrives as text. This is the guarantee that
  *   matters, and it is the same one the message body already relies on.
  * - It is parsed inertly, by `DOMParser` into a detached document, and only
- *   the resulting `<pre>` is adopted. A parse is not an execution: no script
+ *   the resulting block element is adopted. A parse is not an execution: no script
  *   runs, no `src` is fetched, no handler attribute is honoured, and that holds
  *   whatever the string turns out to contain. `innerHTML` on the live document
  *   would be one line shorter and would also fetch an `<img src>` if the seam

@@ -13,11 +13,13 @@ import hljs from "../vendor/highlight.js/common.js";
 /**
  * Read the block back without pinning its markup shape. Asserting on the
  * literal start tag would make adding any second attribute to the `<pre>` a
- * suite-wide failure for no change in behaviour.
+ * suite-wide failure for no change in behaviour, and the same goes for the
+ * wrapper around it: only the tests below that are *about* the wrapper look
+ * for it.
  */
-const preStyle = (html) => html.match(/^<pre\b[^>]*\bstyle="([^"]*)"/)?.[1];
+const preStyle = (html) => html.match(/<pre\b[^>]*\bstyle="([^"]*)"/)?.[1];
 const preContent = (html) =>
-  html.replace(/^<pre\b[^>]*>/, "").replace(/<\/pre>$/, "");
+  html.replace(/^[\s\S]*?<pre\b[^>]*>/, "").replace(/<\/pre>[\s\S]*$/, "");
 
 /**
  * The block's text, read straight off the markup with no spans to see through.
@@ -374,7 +376,7 @@ describe("buildCodeBlockHtml", () => {
       expect(html.match(/style=/g)).toHaveLength(1);
     });
 
-    it("emits no class attribute and no style element", () => {
+    it("rewrites every highlighter class into a style", () => {
       const { html } = buildCodeBlockHtml({
         source: javascript,
         language: "javascript",
@@ -382,7 +384,9 @@ describe("buildCodeBlockHtml", () => {
       });
 
       expect(html).toContain("<span");
-      expect(html).not.toMatch(/\bclass=/);
+      // Read off the content, so the wrapper's marker class — the one class in
+      // the block, and not a highlighting one — is out of the question here.
+      expect(preContent(html)).not.toMatch(/\bclass=/);
       expect(html).not.toMatch(/<style\b/i);
     });
 
@@ -572,7 +576,39 @@ describe("buildCodeBlockHtml", () => {
     it("opts the block out of spell checking", () => {
       const { html } = buildCodeBlockHtml({ source: "const usr = getEnv();" });
 
-      expect(html).toMatch(/^<pre\b[^>]*\bspellcheck="false"/);
+      expect(html).toMatch(/<pre\b[^>]*\bspellcheck="false"/);
+    });
+
+    /**
+     * The attribute above is the standard's answer and Thunderbird's compose
+     * editor is the one reader that ignores it: Gecko's inline spell checker
+     * takes a different branch for mail editors, one that consults three
+     * classes of its own and never the attribute. So the block is wrapped in
+     * the only one of the three that is inert everywhere else — a signature
+     * would be rewritten when the identity's signature changes, and a
+     * `blockquote type="cite"` would render as quoted text on the recipient's
+     * screen.
+     *
+     * Pinned as an exact string because it is not ours to spell differently.
+     */
+    it("wraps the block in the container that mail editor skips", () => {
+      const { html } = buildCodeBlockHtml({ source: "const usr = getEnv();" });
+
+      expect(html).toMatch(/^<div class="moz-forward-container"><pre\b/);
+      expect(html).toMatch(/<\/pre><\/div>$/);
+    });
+
+    /**
+     * A marker and not a styling hook. Anything else on it — a style, a second
+     * class — would make the wrapper part of how the block looks, and the
+     * block's appearance is the `<pre>`'s business alone.
+     */
+    it("puts nothing but that class on the wrapper", () => {
+      const { html } = buildCodeBlockHtml({ source: "x" });
+
+      const [, attributes] = html.match(/^<div\b([^>]*)>/);
+      expect(attributes.match(/\b[\w-]+=/g)).toEqual(["class="]);
+      expect(html.match(/<div\b/g)).toHaveLength(1);
     });
 
     /**
@@ -583,7 +619,7 @@ describe("buildCodeBlockHtml", () => {
      */
     it("adds nothing else to the start tag", () => {
       const [, attributes] = buildCodeBlockHtml({ source: "x" }).html.match(
-        /^<pre\b([^>]*)>/,
+        /<pre\b([^>]*)>/,
       );
 
       expect(attributes.match(/\b[\w-]+=/g)).toEqual(["spellcheck=", "style="]);
@@ -600,8 +636,17 @@ describe("buildCodeBlockHtml", () => {
       source: "const a = 1;\nconst b = 2;",
     });
 
-    it("carries no class attribute for a client to rewrite", () => {
-      expect(html).not.toMatch(/\bclass=/);
+    /**
+     * A class is meaningless without the stylesheet that defines it, and no
+     * stylesheet reaches the recipient. The one exception is the wrapper's
+     * marker class, which asks nothing of any stylesheet: a client that keeps
+     * it renders the block the same as a client that strips it. Everything
+     * inside the wrapper — the `<pre>` and every token span — stays
+     * class-free, so what the block *looks like* survives on its own.
+     */
+    it("carries no class attribute inside the wrapper", () => {
+      expect(html.match(/\bclass=/g)).toHaveLength(1);
+      expect(html.replace(/^<div[^>]*>/, "")).not.toMatch(/\bclass=/);
     });
 
     it("carries no style element, which reply-quoting would discard", () => {
@@ -612,9 +657,10 @@ describe("buildCodeBlockHtml", () => {
       expect(html).not.toMatch(/<table\b/i);
     });
 
-    it("is one preformatted element and nothing else", () => {
+    it("is one preformatted element in one wrapper and nothing else", () => {
       expect(html.match(/<pre\b/g)).toHaveLength(1);
-      expect(html).toMatch(/<\/pre>$/);
+      expect(html.match(/<div\b/g)).toHaveLength(1);
+      expect(html).toMatch(/<\/pre><\/div>$/);
     });
   });
 
@@ -793,8 +839,8 @@ describe("buildCodeBlockHtml", () => {
       const { html } = buildCodeBlockHtml({ source: "\n \n\t\n" });
 
       expect(preContent(html)).toBe("");
-      expect(html).toMatch(/^<pre[^>]*>/);
-      expect(html).toMatch(/<\/pre>$/);
+      expect(html).toMatch(/<pre[^>]*>/);
+      expect(html).toMatch(/<\/pre><\/div>$/);
     });
 
     /**

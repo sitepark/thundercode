@@ -25,17 +25,47 @@ export const CODE_BLOCK_DEFAULTS = Object.freeze({
  *
  * `hljs` is the class highlight.js puts on the element *containing* the code,
  * and it is where a theme states the colour of the text that no token claims —
- * everything between the highlighted spans. Nothing emitted here
- * carries the class, since the markup contract forbids class attributes
- * outright; the class name is only the key the theme files themselves use, so
- * the map stays one flat table of "what the theme says about this class"
- * instead of growing a second shape for the container.
+ * everything between the highlighted spans. Nothing emitted here carries the
+ * class: the only class in the block is `SPELLCHECK_OPT_OUT_CLASS`, which is a
+ * marker for one editor and never a hook for styling. This one is only the key
+ * the theme files themselves use, so the map stays one flat table of "what the
+ * theme says about this class" instead of growing a second shape for the
+ * container.
  *
  * Exported because the module that reduces a stylesheet to a `themeMap` has to
  * write the same key, and a string that two modules must agree on is a string
  * that belongs to one of them.
  */
 export const CONTAINER_CLASS = "hljs";
+
+/**
+ * The class the block's wrapper carries so that Thunderbird's compose editor
+ * stops spell checking it, and the reason a class does the job an attribute
+ * was invented for.
+ *
+ * `spellcheck="false"` is that attribute and is still on the `<pre>` below,
+ * but Gecko's inline spell checker never reads it in a mail editor. Its
+ * `ShouldSpellCheckNode` splits on the mail flag: outside a mail editor it
+ * finds the nearest HTML element ancestor and honours its `Spellcheck()`, and
+ * inside one it does none of that — it walks the ancestors for three markers
+ * of its own and checks every word not sitting under one. Thunderbird composes
+ * with the `htmlmail` editor type, which sets that flag, so the attribute is
+ * dead markup in the one place the block is going. The same branch is why a
+ * quoted reply comes back unchecked while the sentence above it does not.
+ *
+ * The three markers are `<blockquote type="cite">`, `class="moz-signature"`
+ * and `class="moz-forward-container"`, and only the last can be borrowed. A
+ * quote renders the block as quoted text in every client that draws a quote
+ * bar, and a signature is not cosmetic at all: Thunderbird rewrites and
+ * deletes `.moz-signature` nodes when the identity's signature changes, so the
+ * block would disappear on an identity switch. The forward container is inert
+ * everywhere but this check — no client styles it, and the only other code
+ * that reads it is Thunderbird's Filelink manager, which inserts cloud
+ * attachment links before the first one in the body. Inserting a block above a
+ * forwarded message therefore moves those links above the block. That is the
+ * whole price, and it is the smallest of the three.
+ */
+const SPELLCHECK_OPT_OUT_CLASS = "moz-forward-container";
 
 /**
  * The block's colours when no theme data reaches the seam at all — a caller
@@ -126,18 +156,26 @@ export function buildCodeBlockHtml({
 
   return {
     html:
-      // `spellcheck="false"` because the block lands in a spell-checked
-      // contenteditable and code is not prose. Every identifier, keyword and
-      // path in it is a misspelling to a dictionary, so without this the
-      // block arrives under a wall of red that flags nothing worth reading
-      // and buries the one squiggle in the sentence above it that was worth
-      // reading. It is the only attribute besides `style` the block carries:
-      // it is not styling, so it cannot go in the style attribute, and it is
-      // inert everywhere except an editor — a recipient reading the message
-      // renders it identically, and a recipient quoting it in a reply is
-      // exactly who else wants it.
+      // Both halves of one intention: the block is not prose and no spell
+      // checker should touch it. Every identifier, keyword and path in it is a
+      // misspelling to a dictionary, so unchecked it arrives under a wall of
+      // red that flags nothing worth reading and buries the one squiggle in
+      // the sentence above it that was worth reading.
+      //
+      // The wrapper is what Thunderbird obeys, for the reasons on
+      // `SPELLCHECK_OPT_OUT_CLASS`. It carries that class and nothing else: it
+      // is a marker, not a styling hook, so it needs no stylesheet to mean
+      // what it means and a client that drops the class loses nothing the
+      // recipient could see.
+      //
+      // `spellcheck="false"` stays on the `<pre>` because it is the answer the
+      // standard gives and every editor that is not a Gecko mail editor
+      // honours it — a recipient quoting the block into a webmail reply is
+      // exactly who else wants it, and it is inert anywhere else.
+      `<div class="${SPELLCHECK_OPT_OUT_CLASS}">` +
       `<pre spellcheck="false" style="${preStyle(fontSize, themeMap)}">` +
-      `${renderContent(text, appliedLanguage, themeMap)}</pre>`,
+      `${renderContent(text, appliedLanguage, themeMap)}</pre>` +
+      `</div>`,
     // The normalised source itself, for the plain-text composer that has no
     // markup to take. It is returned rather than left internal because the
     // alternative is a second copy of the four transforms outside this module,

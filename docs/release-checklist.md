@@ -22,6 +22,14 @@ the release is being prepared on a branch.
       block; the selection is replaced, not duplicated.
 - [ ] `Ctrl+Shift+C` opens the popup.
 - [ ] Undo (`Ctrl+Z`) reverses the insert in one step.
+- [ ] No red spell-check underlines anywhere in an inserted block, and prose
+      typed above and below it is still checked. The block relies on the
+      `moz-forward-container` wrapper for this, which is Thunderbird's own
+      marker and not a promise it makes to add-ons — a Thunderbird upgrade
+      could drop it, and only this check would notice.
+- [ ] Attaching a file with Filelink while a block sits above a forwarded
+      message still puts the cloud links in a sensible place. This is the known
+      cost of that wrapper; it is a nuisance, not a failure.
 - [ ] The message is marked modified after an insert (closing prompts to save).
 
 ## Highlighting
