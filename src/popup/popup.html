@@ -77,6 +77,10 @@
       opening this popup, never the one inside it.
     -->
     <button id="insert" type="button" title="Ctrl+Enter">Insert</button>
-    <script type="module" src="popup.js"></script>
+    <!--
+      main.js and not popup.js: the module holds the wiring and exports the
+      one call that starts it, and this is the document that call is for.
+    -->
+    <script type="module" src="main.js"></script>
   </body>
 </html>
