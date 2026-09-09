@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TAKE_PENDING_SELECTION } from "../../src/messaging/take-pending-selection.js";
 import { event, installBrowserFake } from "../helpers/browser-fake.js";
 
 /**
@@ -16,16 +17,6 @@ import { event, installBrowserFake } from "../helpers/browser-fake.js";
  * windows open can check that a snippet arrived in the right one, but not that
  * it could never arrive in the wrong one.
  */
-
-/**
- * The message the popup claims its prefill with. A literal in both modules and
- * exported by neither, which makes this the third copy: the background gets no
- * new interface for the sake of a test, and the popup is not this ticket's to
- * change. A test that made up its own name here would pass while the popup
- * asked for something else, so the two literals staying in step is on whoever
- * changes one of them.
- */
-const TAKE_PENDING_SELECTION = "thundercode:take-pending-selection";
 
 const composeTab = (id, windowId) => ({ id, windowId, type: "messageCompose" });
 

@@ -1,6 +1,7 @@
 import hljs from "../../vendor/highlight.js/common.js";
 import { buildCodeBlockHtml } from "../code-block/build-code-block-html.js";
 import { insertIntoBody } from "../compose/insert-into-body.js";
+import { TAKE_PENDING_SELECTION } from "../messaging/take-pending-selection.js";
 import { readSettings } from "../settings/settings.js";
 import { createLanguageLatch } from "./language-latch.js";
 import { measureSnippet } from "./snippet-size.js";
@@ -472,7 +473,7 @@ export function startPopup({
   async function claimSelectionPrefill() {
     const tab = await findComposeTab();
     const selectionText = await browser.runtime.sendMessage({
-      type: "thundercode:take-pending-selection",
+      type: TAKE_PENDING_SELECTION,
       tabId: tab.id,
     });
     if (typeof selectionText !== "string" || selectionText === "") {

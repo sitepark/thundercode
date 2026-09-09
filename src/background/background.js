@@ -1,3 +1,5 @@
+import { TAKE_PENDING_SELECTION } from "../messaging/take-pending-selection.js";
+
 /**
  * The extension's background, and the first one it has had: ticket 01 left it
  * out deliberately because a `compose_action` with a `default_popup` opens
@@ -21,8 +23,6 @@
  * only way to hear about a click.
  */
 const MENU_ID = "thundercode-insert-code-block";
-
-const TAKE_PENDING_SELECTION = "thundercode:take-pending-selection";
 
 /**
  * Text a right-click parked for the popup that is about to open, keyed by the
