@@ -31,8 +31,9 @@
  * await compose.confirmActionPopup();        // Ctrl+Enter, then wait for the
  *                                            // popup to close
  * await compose.selectInBody("text");        // something to right-click
- * const items = await compose.openBodyContextMenu();  // the add-on's items
+ * const items = await compose.openBodyContextMenu({ expecting: 1 });
  * await compose.activateMenuItem(items[0].id);
+ * await compose.closeBodyContextMenu();      // for a menu only looked at
  * await compose.editorState();               // { canUndo, modificationCount }
  * await compose.undo();
  * await session.consoleMessages();           // which path the insert took
@@ -44,8 +45,9 @@
  * Marionette's chrome context, so a script sees `Services`, `ChromeUtils`, `Cc`
  * and `Ci`, and `window` is the window it was called on.
  *
- * Four limits worth knowing before writing a test against this. Each was found
- * the hard way and each is explained where it bites, in session.js:
+ * Four things worth knowing before writing a test against this. Each was found
+ * the hard way and each is explained where it bites, in session.js. The first
+ * three are limits of the harness; the fourth is the add-on's own shape:
  *
  * - `openActionPopup()` cannot see *inside* the popup. What it can do is hand
  *   the popup the keyboard and read the result out of the message body, which
@@ -59,8 +61,11 @@
  *   and says what that does and does not cover.
  * - The popup cannot be opened in a plain-text composer at all, because
  *   Thunderbird hides the toolbar this add-on's button sits in and the popup
- *   is anchored to that button. That is a defect in the add-on rather than a
- *   limit of the harness - issue #12, with the details in insertion.test.js.
+ *   is anchored to that button. That is the add-on's scope rather than a limit
+ *   of the harness: it inserts into HTML mail, and a plain-text composer is
+ *   offered no route in - which is why `openBodyContextMenu()` finds no item
+ *   in one. A test that wants the plain-text *insert* has to reach past that
+ *   by hand, and insertion.test.js says how and why.
  *
  * Every test file in this tier imports from here and not from the files
  * behind it, so this list is what the tier actually uses: a name that stops

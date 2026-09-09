@@ -35,11 +35,25 @@ describe("the background", () => {
   /** The ids the menu already holds, which outlive any one wake of the page. */
   let created;
 
+  /**
+   * The tab ids that are plain-text composers. Everything else the fake is
+   * asked about is an HTML one, so a test that says nothing about format is a
+   * test about an HTML composer - which is what every test here was before
+   * the format started to matter.
+   */
+  let plainText;
+
   beforeEach(() => {
     unhandled = [];
     created = new Set();
+    plainText = new Set();
 
     fake = installBrowserFake({
+      compose: {
+        getComposeDetails: async (tabId) => ({
+          isPlainText: plainText.has(tabId),
+        }),
+      },
       menus: {
         create: (properties, callback) => {
           const duplicate = created.has(properties.id);
@@ -55,7 +69,11 @@ describe("the background", () => {
           }
           browser.runtime.lastError = undefined;
         },
+        update: async () => {},
+        refresh: async () => {},
         onClicked: event(),
+        onShown: event(),
+        onHidden: event(),
       },
       runtime: {
         lastError: undefined,
@@ -103,6 +121,32 @@ describe("the background", () => {
       tab,
     );
     await handled;
+  };
+
+  /**
+   * Thunderbird showing the compose body's context menu, which is the moment
+   * the add-on gets to say whether its item belongs in it. Answered with the
+   * listener's own promise rather than awaited here, so that a test can fire
+   * something else while the add-on is still deciding.
+   */
+  const showMenu = (tab, contexts = ["compose_body"]) => {
+    const [shown] = fake.fire(
+      "menus.onShown",
+      { contexts, menuIds: [menuProperties().id] },
+      tab,
+    );
+    return shown;
+  };
+
+  /**
+   * A composer that cannot answer at all - the tab has closed, or was never
+   * one. The other half of the format axis that the `plainText` set above is
+   * the first half of.
+   */
+  const cannotBeAsked = () => {
+    browser.compose.getComposeDetails = async (tabId) => {
+      throw new Error(`Invalid tab ID: ${tabId}`);
+    };
   };
 
   /**
@@ -161,6 +205,146 @@ describe("the background", () => {
 
       const [first, second] = fake.calls("menus.create");
       expect(second[0]).toEqual(first[0]);
+    });
+
+    /**
+     * Created hidden, and revealed by `menus.onShown` once the composer has
+     * been asked what format it is in. The other order - created visible and
+     * hidden when the composer turns out to be plain text - is a menu that
+     * offers the insert for as long as the answer takes to arrive, in exactly
+     * the composer where the offer is false.
+     */
+    it("creates the item hidden, before any composer has been asked", async () => {
+      await wake();
+
+      expect(menuProperties().visible).toBe(false);
+    });
+  });
+
+  /**
+   * This is an HTML-mail add-on, and a plain-text composer has no route into
+   * it: the button sits in the format toolbar, which Thunderbird hides there,
+   * and the popup is anchored to that button. The context menu is the one
+   * route that could still offer an insert nothing can carry out, so what the
+   * add-on does about it is keep the item out of the menu.
+   */
+  describe("the offer it makes, by the composer's format", () => {
+    it("shows the item in an HTML composer's menu", async () => {
+      await wake();
+      await showMenu(composeTab(1, 11));
+
+      expect(fake.calls("menus.update")).toEqual([
+        [menuProperties().id, { visible: true }],
+      ]);
+      expect(fake.calls("menus.refresh")).toHaveLength(1);
+    });
+
+    /**
+     * `refresh` is the half that is easy to leave out and impossible to see
+     * without: the menu is already on screen when this runs, so an item whose
+     * visibility changed is drawn as it was until the menu is rebuilt.
+     */
+    it("keeps the item out of a plain-text composer's menu", async () => {
+      await wake();
+      plainText.add(1);
+      await showMenu(composeTab(1, 11));
+
+      expect(fake.calls("menus.update")).toEqual([
+        [menuProperties().id, { visible: false }],
+      ]);
+      expect(fake.calls("menus.refresh")).toHaveLength(1);
+    });
+
+    /**
+     * The tab has gone, or was never a composer. Not offering is the answer
+     * that cannot be wrong: an item that is not there is a route the user does
+     * not take, while an item that is there is a promise this add-on has just
+     * failed to check it can keep.
+     */
+    it("offers nothing when the format cannot be read", async () => {
+      await wake();
+      cannotBeAsked();
+      await showMenu(composeTab(1, 11));
+
+      expect(fake.calls("menus.update")).toEqual([
+        [menuProperties().id, { visible: false }],
+      ]);
+    });
+
+    /**
+     * `menus.onShown` fires for every menu the add-on holds the permission to
+     * see, not only for the one it has an item in. Touching the item from a
+     * menu it is not in would set its visibility for whichever menu opens
+     * next.
+     */
+    it("leaves a menu it has nothing in alone", async () => {
+      await wake();
+      await showMenu(composeTab(1, 11), ["selection", "message_list"]);
+
+      expect(fake.calls("compose.getComposeDetails")).toEqual([]);
+      expect(fake.calls("menus.update")).toEqual([]);
+      expect(fake.calls("menus.refresh")).toEqual([]);
+    });
+
+    it("leaves a menu with no tab behind it alone", async () => {
+      await wake();
+      await showMenu(undefined);
+
+      expect(fake.calls("compose.getComposeDetails")).toEqual([]);
+      expect(fake.calls("menus.update")).toEqual([]);
+    });
+
+    /**
+     * The menu is already on screen when the listener runs, so the format can
+     * arrive after the user has dismissed it. Setting the item's visibility
+     * then would be setting it for whatever menu opens next, which is how an
+     * item hidden for a plain-text composer finds its way back into one.
+     */
+    it("says nothing about a menu that has already closed", async () => {
+      await wake();
+      const shown = showMenu(composeTab(1, 11));
+      fake.fire("menus.onHidden");
+      await shown;
+
+      expect(fake.calls("menus.update")).toEqual([]);
+      expect(fake.calls("menus.refresh")).toEqual([]);
+    });
+
+    /** The same guard from the other side: two menus, and the second wins. */
+    it("answers only the menu that is open when the format arrives", async () => {
+      await wake();
+      plainText.add(2);
+      const first = showMenu(composeTab(1, 11));
+      const second = showMenu(composeTab(2, 22));
+      await Promise.all([first, second]);
+
+      expect(fake.calls("menus.update")).toEqual([
+        [menuProperties().id, { visible: false }],
+      ]);
+    });
+
+    /**
+     * Whether the item is visible is state Thunderbird holds between one menu
+     * and the next, so a click can arrive from a menu that was painted before
+     * the add-on had its say. The handler is correct on its own rather than on
+     * the strength of the item being hidden: no popup to open, and no
+     * selection left parked for whatever opens this tab's popup next.
+     */
+    it("refuses a click that reaches it in a plain-text composer", async () => {
+      await wake();
+      plainText.add(1);
+      await rightClick(composeTab(1, 11), "SELECT 1;");
+
+      expect(fake.calls("composeAction.openPopup")).toEqual([]);
+      expect(await claim(1)).toBe("");
+    });
+
+    it("refuses a click whose composer cannot be asked", async () => {
+      await wake();
+      cannotBeAsked();
+      await rightClick(composeTab(1, 11), "SELECT 1;");
+
+      expect(fake.calls("composeAction.openPopup")).toEqual([]);
     });
   });
 
