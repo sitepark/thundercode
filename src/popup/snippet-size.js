@@ -18,7 +18,7 @@ export const LARGE_SNIPPET_LINES = 500;
  * How many lines the pasted source has, and whether that is enough to warn
  * about.
  *
- * Pure and DOM-free so the threshold decision can be driven from a Node test —
+ * Pure and DOM-free so the threshold decision can be driven from a Node test -
  * the popup around it cannot be, since the runner has no DOM. The wording of
  * the warning is deliberately *not* here: pinning a sentence in a test makes
  * rephrasing it a test failure, and the sentence is the part of this most
@@ -41,7 +41,7 @@ function countLines(source) {
   }
   // A trailing newline terminates the last line rather than starting another,
   // which is how editors count and how a paste will have been produced. Without
-  // this, copying 501 lines out of an editor reports 502 — close enough not to
+  // this, copying 501 lines out of an editor reports 502 - close enough not to
   // matter to the warning, but wrong in a way that invites a bug report.
   const body = source.endsWith("\n") ? source.slice(0, -1) : source;
   return body.split("\n").length;

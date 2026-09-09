@@ -30,8 +30,8 @@ jobs:
       - run: pnpm test
 
       # The release job reads the archive path off this script's stdout and
-      # uploads whatever it names, so a script that breaks — or that stops
-      # putting manifest.json at the archive root — fails a release rather
+      # uploads whatever it names, so a script that breaks - or that stops
+      # putting manifest.json at the archive root - fails a release rather
       # than a test run. Check it here, where the fix is cheap.
       - name: Check the archive and update manifest still build
         run: |

@@ -19,13 +19,13 @@ const previewPane = document.getElementById("preview");
  * immediately, so it is long finished by the time anyone has pasted anything,
  * and awaiting it inside the insert removes the window where a fast Insert
  * would find it not yet loaded. Re-reading per insert would buy freshness
- * nobody can use — the popup is closed while the options page is open.
+ * nobody can use - the popup is closed while the options page is open.
  */
 const settings = readSettings();
 
 /**
- * Started at load, awaited at insert. Reading the theme is asynchronous — the
- * stylesheet has to have finished parsing — but it does not depend on anything
+ * Started at load, awaited at insert. Reading the theme is asynchronous - the
+ * stylesheet has to have finished parsing - but it does not depend on anything
  * the user does, so kicking it off now means the wait has almost always
  * already elapsed by the time Insert is pressed.
  *
@@ -64,7 +64,7 @@ fillLanguageDropdown();
  * Once they have, detection stops for the rest of this popup: an override is
  * an instruction, and a dropdown that re-guesses over the top of a deliberate
  * choice is worse than one that never guessed. It is a plain module variable
- * on purpose — the popup document is built fresh every time the button is
+ * on purpose - the popup document is built fresh every time the button is
  * clicked, so this resets itself, and there is deliberately nothing anywhere
  * that writes the chosen language to `storage`. Remembering it across opens is
  * exactly how auto-detection stops working without anyone noticing.
@@ -75,8 +75,8 @@ let languageOverridden = false;
  * Whether the language the next render applies should be detected rather than
  * taken from the dropdown.
  *
- * Detection and the preview are one seam call — a source change costs one
- * highlight pass, not two — so this flag is the whole of the difference
+ * Detection and the preview are one seam call - a source change costs one
+ * highlight pass, not two - so this flag is the whole of the difference
  * between the two kinds of edit: every change re-renders, and only a wholesale
  * one asks for a fresh guess. It is set by the change and cleared by the
  * render that honours it, so two pastes in quick succession still detect once.
@@ -95,13 +95,13 @@ languageField.addEventListener("change", () => {
 });
 
 /**
- * What the seam should be told about the language: nothing at all — which is
- * how any caller asks it to detect — while a wholesale change is still waiting
+ * What the seam should be told about the language: nothing at all - which is
+ * how any caller asks it to detect - while a wholesale change is still waiting
  * to be rendered, and the dropdown's value otherwise.
  *
  * A function rather than a branch inside the render, because the insert needs
  * the same answer. Paste and Ctrl+Enter inside the debounce window is a real
- * path — it is close to the fastest way to use this popup — and reading the
+ * path - it is close to the fastest way to use this popup - and reading the
  * dropdown there would insert the block under whatever language was last
  * shown. Both callers detect through the same pure seam over the same source,
  * so they cannot arrive at different answers.
@@ -114,7 +114,7 @@ function requestedLanguage() {
  * The compose window this popup was opened from.
  *
  * A popup anchored in a compose window resolves `currentWindow` to that
- * window, so the active tab is the composer the button was clicked in — which
+ * window, so the active tab is the composer the button was clicked in - which
  * is what keeps a snippet out of the wrong email when several composers are
  * open. If the resolved tab is not a composer, we refuse rather than guess at
  * another one.
@@ -135,8 +135,8 @@ async function insert() {
   // adapt rather than offering to switch, and the button works either way.
   const { isPlainText } = await browser.compose.getComposeDetails(tab.id);
 
-  // Both settings arrive resolved — `readSettings` falls back to the seam's
-  // defaults for anything unset or unusable — so there is nothing to check
+  // Both settings arrive resolved - `readSettings` falls back to the seam's
+  // defaults for anything unset or unusable - so there is nothing to check
   // here, and no branch for "settings never configured".
   const { tabWidth, fontSize } = await settings;
 
@@ -172,7 +172,7 @@ async function insert() {
     // inside `if (typeof newValues.body == "string")`. `deliveryFormat` is
     // handled separately, and only sets `compFields.deliveryFormat` and
     // refreshes the send-format menu. So passing `deliveryFormat` alone cannot
-    // touch the caret this insert is about to read — the only marks it leaves
+    // touch the caret this insert is about to read - the only marks it leaves
     // are `gContentChanged = true`, on a message we are about to change
     // anyway, and a `focus()` back onto whatever was focused.
     await browser.compose.setComposeDetails(tab.id, { deliveryFormat: "both" });
@@ -181,7 +181,7 @@ async function insert() {
   // how an HTML message is put on the wire, and there is no HTML part here to
   // downgrade. Ticket 02 predicted this call would be rejected on a plain-text
   // composer, which the popup would then surface as an error while inserting
-  // nothing — the button looking broken in exactly the window this ticket is
+  // nothing - the button looking broken in exactly the window this ticket is
   // about. Not making the call is both the fix and the honest description.
 
   const [injection] = await browser.scripting.executeScript({
@@ -197,7 +197,7 @@ async function insert() {
 /**
  * Advisory, and structurally so: this function writes to the warning line and
  * to nothing else. It never touches `insertButton.disabled`, and neither does
- * the insert path read the warning — emailing three thousand lines of code is a
+ * the insert path read the warning - emailing three thousand lines of code is a
  * mistake worth mentioning and not one worth preventing. Ticket 02 removed the
  * last thing that gated Insert on the textarea's contents; this is not quietly
  * putting one back, and there is no size at which it starts to.
@@ -222,7 +222,7 @@ function refreshSizeWarning() {
  * milliseconds.
  *
  * The seam is not free: highlighting is a scan over the whole snippet, and
- * detection scores it against all 36 grammars — around 100ms for a 500-line
+ * detection scores it against all 36 grammars - around 100ms for a 500-line
  * paste and half a second for the 3000-line one ticket 11's warning exists
  * for. The snippet may be hundreds of lines, and rendering on every keystroke
  * would do all of that once per character and throw all but the last result
@@ -235,7 +235,7 @@ function refreshSizeWarning() {
  * only the changed region is not something highlight.js offers. 150ms is longer
  * than the gap between keystrokes of anyone typing fast, so a burst collapses
  * into one render, and short enough that the preview still reads as immediate
- * after a pause. Nothing measured it — it is a threshold, not a boundary, and
+ * after a pause. Nothing measured it - it is a threshold, not a boundary, and
  * the dominant path is a single paste, where the cost is one render either way.
  */
 const PREVIEW_DEBOUNCE_MS = 150;
@@ -258,8 +258,8 @@ let previewGeneration = 0;
  * as `y`, because there is one `detectedLanguage` and one `html` and they came
  * out of the same call over the same source.
  *
- * The popup asks for detection the way any caller does — by naming no
- * language — and reads back `detectedLanguage`, which is the language that was
+ * The popup asks for detection the way any caller does - by naming no
+ * language - and reads back `detectedLanguage`, which is the language that was
  * applied and not the one that was requested. Detection itself lives behind
  * the seam, and this file neither knows nor can tell that `hljs.highlightAuto`
  * is involved.
@@ -267,7 +267,7 @@ let previewGeneration = 0;
  * The rest is the preview: `html` here is not a rendering *like* the
  * one that gets inserted, it is the string that will be. The seam is pure, so
  * the same source, language, theme map and settings cannot produce two
- * different blocks — which is why the preview can be trusted, and why there is
+ * different blocks - which is why the preview can be trusted, and why there is
  * deliberately no preview stylesheet and no simplified preview markup anywhere
  * in this popup. A second rendering path would be a second thing to keep
  * correct, and its drift would show up as a preview that was accurate right up
@@ -278,8 +278,8 @@ let previewGeneration = 0;
  * one, and it is worth saying which of them is the real defence:
  *
  * - The string is not user HTML. It is the seam's output, and the seam escapes
- *   every `&`, `<` and `>` in the source before it becomes markup — a test
- *   pins that — so pasted markup arrives as text. This is the guarantee that
+ *   every `&`, `<` and `>` in the source before it becomes markup - a test
+ *   pins that - so pasted markup arrives as text. This is the guarantee that
  *   matters, and it is the same one the message body already relies on.
  * - It is parsed inertly, by `DOMParser` into a detached document, and only
  *   the resulting block element is adopted. A parse is not an execution: no script
@@ -328,7 +328,7 @@ async function renderFromSource() {
     languageField.value = detectedLanguage;
   }
 
-  // An empty textarea shows nothing — not the bordered empty box the seam
+  // An empty textarea shows nothing - not the bordered empty box the seam
   // returns for empty source, and not an error either. There is nothing to
   // preview before anything has been pasted, and a box appearing the moment
   // the popup opens would read as the block already existing. The call above
@@ -363,8 +363,8 @@ function schedulePreview() {
 /**
  * Renders without waiting, and cancels any render that was waiting.
  *
- * Used for the two ways content arrives that are not typing — the popup
- * opening, and the right-click prefill — where a debounce would only mean the
+ * Used for the two ways content arrives that are not typing - the popup
+ * opening, and the right-click prefill - where a debounce would only mean the
  * dropdown visibly correcting itself a moment after the popup appeared.
  */
 function renderNow() {
@@ -373,7 +373,7 @@ function renderNow() {
   // one up. Stale is the one failure mode this element must not have: a
   // preview showing the previous language beside a dropdown showing the new
   // one is worse than no preview at all. The error itself is not surfaced
-  // here — the insert makes the identical call and reports it properly on the
+  // here - the insert makes the identical call and reports it properly on the
   // error line, and a preview failure is not an insert failure until someone
   // presses Insert.
   renderFromSource().catch(hidePreview);
@@ -383,8 +383,8 @@ function renderNow() {
  * Everything that happens when the source changes, in one place and in one
  * order.
  *
- * There were three `input` listeners here — detection, the size warning, the
- * preview — registered by three tickets that could not see each other, and the
+ * There were three `input` listeners here - detection, the size warning, the
+ * preview - registered by three tickets that could not see each other, and the
  * prefill below had to replay each of them by hand. One entry point means the
  * prefill announces a change instead of re-enacting one, and means the
  * difference between the paths is stated as data rather than as which
@@ -416,13 +416,13 @@ sourceField.addEventListener("input", (event) => {
 });
 
 /**
- * Whether this edit replaced the content wholesale — a paste, a drop, a
- * middle-click yank — rather than moving it along by a character.
+ * Whether this edit replaced the content wholesale - a paste, a drop, a
+ * middle-click yank - rather than moving it along by a character.
  *
  * Detection is not cheap, and it is not wanted per keystroke even if it were:
  * the trigger is the arrival of new content and not every edit of it. That is
- * also the honest reading of the story — the language is detected when code is
- * pasted, and a snippet being tweaked afterwards has already got one — and it
+ * also the honest reading of the story - the language is detected when code is
+ * pasted, and a snippet being tweaked afterwards has already got one - and it
  * is what keeps the dropdown from re-guessing under someone's fingers while
  * they fix a typo.
  *
@@ -442,8 +442,8 @@ handleSourceChanged({ wholesale: true, immediate: true });
 /**
  * Right-click path: the menu handler parks the selected text against the
  * compose tab and opens this popup, which claims it here. The background drops
- * the text as it hands it over, so a toolbar or shortcut open — which parks
- * nothing — gets an empty string and the popup opens empty.
+ * the text as it hands it over, so a toolbar or shortcut open - which parks
+ * nothing - gets an empty string and the popup opens empty.
  *
  * The prefill is the convenient path, not the reliable one. `selectionText` is
  * plain text extracted from HTML, so whatever indentation it arrives with is
@@ -461,7 +461,7 @@ async function claimSelectionPrefill() {
   }
   sourceField.value = selectionText;
   // Assigning `value` from script fires no `input` event, so the change has to
-  // be announced by hand — once, to the one thing that watches the textarea.
+  // be announced by hand - once, to the one thing that watches the textarea.
   // Content that arrived from outside is as wholesale as a paste, and it is
   // already here rather than being typed, so there is no burst to wait out.
   handleSourceChanged({ wholesale: true, immediate: true });
@@ -475,7 +475,7 @@ claimSelectionPrefill().catch(() => {});
 /**
  * The one path from "confirm" to a closed popup, shared by the button and the
  * keyboard. Both entry points have to behave identically, including the error
- * branch — a shortcut that silently does nothing is worse than one that does
+ * branch - a shortcut that silently does nothing is worse than one that does
  * not exist.
  */
 async function confirmInsert() {
@@ -506,7 +506,7 @@ insertButton.addEventListener("click", confirmInsert);
 // this and the shortcut sends the message.
 //
 // `metaKey` is accepted alongside `ctrlKey` because on macOS the same gesture
-// is Cmd+Enter — the manifest's `Ctrl` is likewise read as Command there.
+// is Cmd+Enter - the manifest's `Ctrl` is likewise read as Command there.
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) {
     return;

@@ -3,7 +3,7 @@ import { CONTAINER_CLASS } from "../code-block/build-code-block-html.js";
 /**
  * Reduces the vendored theme stylesheet to the flat `themeMap` the seam takes.
  *
- * Colours are never transcribed by hand — the block's own text colour
+ * Colours are never transcribed by hand - the block's own text colour
  * included, which is why the theme's `.hljs` base rule is read here alongside
  * every token rule. The stylesheet stays the single source of truth and
  * swapping themes stays a one-file change, because the thing that reads it is
@@ -27,7 +27,7 @@ import { CONTAINER_CLASS } from "../code-block/build-code-block-html.js";
  * declaration or matching on `cssText`. Gecko expands a shorthand such as
  * `font: italic bold 12px/1 monospace` into its longhands when parsing into
  * the CSSOM, so the accessors see the value either way, whereas iterating only
- * ever surfaces the literal token the theme's author typed — which would
+ * ever surfaces the literal token the theme's author typed - which would
  * silently miss a whitelisted property hidden inside a shorthand. Today's
  * theme happens to use longhands throughout; the next one may not.
  */
@@ -44,8 +44,8 @@ const TOKEN_PROPERTIES = [
  * that all code is bold.
  *
  * Text colour only, and deliberately not the background. A theme's `.hljs`
- * background is the *page* colour it assumes it is being read on — the GitHub
- * light theme says `#ffffff` — not a fill for a code block. Taking it would
+ * background is the *page* colour it assumes it is being read on - the GitHub
+ * light theme says `#ffffff` - not a fill for a code block. Taking it would
  * paint the block white on a white message and leave the border doing all the
  * work, when the spec asks for the block to be delimited by "a border, padding
  * and a background". The fill is the block's own chrome, chosen with the
@@ -58,8 +58,8 @@ const CONTAINER_PROPERTIES = [["color", "color"]];
  * token and was the last colour still written out by hand.
  *
  * Exactly `.hljs` and nothing more. The structural `pre code.hljs` and
- * `code.hljs` rules describe how a theme lays a block out on a web page —
- * padding, `overflow-x` — and carry nothing whitelisted here; the block's own
+ * `code.hljs` rules describe how a theme lays a block out on a web page -
+ * padding, `overflow-x` - and carry nothing whitelisted here; the block's own
  * padding and border are this extension's decisions and are stated in the
  * seam.
  */
@@ -70,7 +70,7 @@ const CONTAINER_SELECTOR = /^\.hljs$/;
  *
  * Requiring `.hljs-` excludes the theme's `.hljs` base rule, which styles the
  * *container* rather than any token and is matched by `CONTAINER_SELECTOR`
- * above instead — under its own whitelist and its own key. It also excludes
+ * above instead - under its own whitelist and its own key. It also excludes
  * the structural `pre code.hljs` and `code.hljs` rules.
  *
  * Allowing no whitespace excludes the theme's two descendant rules,
@@ -88,7 +88,7 @@ const TOKEN_SELECTOR = /^\.hljs-[\w-]+(?:\.[\w-]+)*$/;
  * The wait is not superstition. `document.styleSheets` gains an entry as soon
  * as the `<link>` element is parsed, but its `cssRules` are only populated
  * once the resource has actually loaded. For a local vendored file that window
- * is short — a disk read, no network — but it is not zero, and reading through
+ * is short - a disk read, no network - but it is not zero, and reading through
  * it yields a silently empty map and a monochrome block.
  *
  * Every failure here returns an empty map rather than throwing. An empty map
@@ -106,7 +106,7 @@ export async function loadThemeMap(link) {
     // `.cssRules` throws a SecurityError for a cross-origin stylesheet. That
     // cannot happen for a vendored file loaded from the extension's own
     // origin, which is one more reason the theme is vendored rather than
-    // linked from a CDN — but the block should lose its colour rather than the
+    // linked from a CDN - but the block should lose its colour rather than the
     // popup its insert if it ever does.
     return {};
   }
@@ -132,14 +132,14 @@ function buildThemeMap(sheet) {
   if (!sheet) return themeMap;
 
   for (const rule of sheet.cssRules) {
-    // Anything that is not a plain style rule — `@media`, `@import`, a
-    // comment-only rule — has no `selectorText` and is skipped. A theme with
+    // Anything that is not a plain style rule - `@media`, `@import`, a
+    // comment-only rule - has no `selectorText` and is skipped. A theme with
     // an `@media` block would need its contents walked too; none of hljs's do.
     if (typeof rule.selectorText !== "string") continue;
 
     // A comma group is one rule with several selectors. Each gets its own
     // entry, so `.hljs-variable` and `.hljs-variable.language_` can be grouped
-    // together in the source and still be distinguishable — which in this
+    // together in the source and still be distinguishable - which in this
     // theme they are not, and in the keyword group they are. The whitelist is
     // picked per selector rather than per rule, because a theme is free to
     // group `.hljs` with a token selector and the two take different
@@ -189,8 +189,8 @@ function addEntry(themeMap, selector, style) {
  * is what lets `.hljs-variable.language_` keep its own colour.
  *
  * The `hljs-` prefix is kept rather than stripped. Stripping would buy
- * nothing — the modifier classes never carry the prefix, so it would be a
- * mixed convention — and this way the key falls out of the selector text with
+ * nothing - the modifier classes never carry the prefix, so it would be a
+ * mixed convention - and this way the key falls out of the selector text with
  * no step of its own.
  */
 function toClassList(selector) {

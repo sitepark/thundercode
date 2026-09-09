@@ -70,7 +70,7 @@ async function save() {
 }
 
 /**
- * Whether what came back differs from what was typed — which is the question,
+ * Whether what came back differs from what was typed - which is the question,
  * rather than whether it differs from what is in the field, because `show` is
  * about to overwrite that.
  *

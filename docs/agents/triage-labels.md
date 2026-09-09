@@ -21,6 +21,6 @@ Apply and change them with `gh`:
 gh issue edit <number> --add-label ready-for-agent --remove-label needs-triage
 ```
 
-Exactly one of these should be set at a time — they are states, not tags. The
+Exactly one of these should be set at a time - they are states, not tags. The
 five are exhaustive: an open issue with none of them has not been triaged, which
 is what `needs-triage` exists to say out loud.

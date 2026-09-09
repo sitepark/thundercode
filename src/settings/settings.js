@@ -9,7 +9,7 @@ import { CODE_BLOCK_DEFAULTS } from "../code-block/build-code-block-html.js";
  * the spinner arrows stop exactly where the coercion starts correcting;
  * writing them into `options.html` instead would put the range in two places.
  *
- * The fallbacks are not stated here at all — they come from the seam, which is
+ * The fallbacks are not stated here at all - they come from the seam, which is
  * what actually renders the block.
  *
  * The bounds themselves are judgement, not physics. They are wide enough that
@@ -19,7 +19,7 @@ import { CODE_BLOCK_DEFAULTS } from "../code-block/build-code-block-html.js";
  * the default was one rule for every bad input, but "40" for a font size is
  * not a bad input, it is a legible request for the largest size on offer, and
  * answering it with 13 loses the only information the user gave. Nonsense
- * still defaults — see `coerceField` — so the two cases are distinguished by
+ * still defaults - see `coerceField` - so the two cases are distinguished by
  * whether there was a number to honour at all, and the options page shows what
  * it settled on either way.
  */
@@ -44,13 +44,13 @@ const SETTING_NAMES = Object.keys(SETTING_FIELDS);
  *
  * This is the part of settings handling worth testing, and the reason it is a
  * function of its own: `storage.local` is unreachable from a Node test, but the
- * decision that matters — what an empty, half-typed, absent or nonsensical
- * value means — is arithmetic and needs no browser. Reading and writing are the
+ * decision that matters - what an empty, half-typed, absent or nonsensical
+ * value means - is arithmetic and needs no browser. Reading and writing are the
  * thin parts wrapped around it.
  *
  * Every path returns both settings as usable numbers, so no caller ever has to
- * ask whether a setting was set. The failure mode the ticket rules out — a
- * broken block — is ruled out here rather than downstream.
+ * ask whether a setting was set. The failure mode the ticket rules out - a
+ * broken block - is ruled out here rather than downstream.
  *
  * @param {Record<string, unknown>} [stored] Raw object as `storage.local`
  *   returns it, or as an options field hands it over.
@@ -67,7 +67,7 @@ export function coerceSettings(stored) {
 
 function coerceField(value, { fallback, min, max }) {
   // Numbers and numeric strings only. A number field hands over a string, and
-  // an empty field hands over `""` — everything else in here got into storage
+  // an empty field hands over `""` - everything else in here got into storage
   // through some other version of this extension or a hand-edited profile, and
   // guessing at it is worse than defaulting.
   if (typeof value !== "number" && typeof value !== "string") return fallback;
@@ -84,7 +84,7 @@ function coerceField(value, { fallback, min, max }) {
 
   // Whole numbers: fractional tab stops do not exist, and the spinner steps by
   // one, so a `13.5` in here came from somewhere the user cannot see. This is
-  // the "no number to honour" case — along with `NaN` from `"4px"` — and it
+  // the "no number to honour" case - along with `NaN` from `"4px"` - and it
   // defaults rather than clamping, because there is no nearest bound to a
   // value that is not on the line.
   if (!Number.isInteger(number)) return fallback;
@@ -102,7 +102,7 @@ function coerceField(value, { fallback, min, max }) {
  *
  * `storage.local`, never `storage.sync`: Thunderbird's sync support has
  * historically been thin, and two numbers are trivial to re-enter on another
- * machine. Local storage is also what makes "persists across a restart" free —
+ * machine. Local storage is also what makes "persists across a restart" free -
  * it is on disk in the profile, not in memory.
  *
  * Never rejects. A settings read failing is not a reason to refuse to insert

@@ -1,7 +1,7 @@
 # Issue tracker: GitHub Issues
 
 Issues for this repo live at
-<https://github.com/sitepark/thundercode/issues>. That is the only tracker —
+<https://github.com/sitepark/thundercode/issues>. That is the only tracker -
 bug reports from colleagues and work items for agents land in the same place,
 because a split tracker means one half goes unread.
 

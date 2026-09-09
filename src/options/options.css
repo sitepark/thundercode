@@ -8,7 +8,7 @@
   takes the pane's appearance rather than stating one of its own. Without it
   the page keeps rendering light inside a dark Thunderbird, because a document
   silent about `color-scheme` is a light-only document however dark its
-  surroundings — and it is the pane's own number fields that come out wrong.
+  surroundings - and it is the pane's own number fields that come out wrong.
 */
 :root {
   color-scheme: light dark;
@@ -42,7 +42,7 @@ input[type="number"] {
 /*
   Quieter than the labels, at both appearances. Each pair is one colour at two
   lightnesses, sitting about as far off its own canvas as the other does off
-  its — a grey chosen for white paper is nearly invisible on a dark pane.
+  its - a grey chosen for white paper is nearly invisible on a dark pane.
 */
 .hint {
   margin: 0.25em 0 1.5em 7.5em;

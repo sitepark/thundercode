@@ -11,7 +11,7 @@
       origin and `cssRules` is readable without a SecurityError.
 
       It sits before popup.css so that popup.css wins any overlap. Today there
-      is none — every selector in the theme is an `.hljs` one, and nothing in
+      is none - every selector in the theme is an `.hljs` one, and nothing in
       this document carries those classes, the preview included: what it
       adopts is the seam's own output, which is inline-styled and carries no
       class attribute at all.
@@ -43,7 +43,7 @@
       registered. Empty in the markup for the same reason.
 
       It follows the textarea because that is the order of the work: paste
-      first, correct the language second — and after ticket 04 the second step
+      first, correct the language second - and after ticket 04 the second step
       is usually not needed, because pasting moves this to the detected
       language. There is no "auto-detect" entry: the point is to show what was
       guessed, not to hide the guess behind a word that names no language.
@@ -57,7 +57,7 @@
       first, which is what makes the preview worth trusting rather than
       reading as indicative.
 
-      It follows the dropdown because it answers the dropdown — the question
+      It follows the dropdown because it answers the dropdown - the question
       it exists to settle is whether the language is right. Empty and hidden
       in the markup: popup.js owns whether there is anything to show, and an
       empty textarea shows nothing at all.

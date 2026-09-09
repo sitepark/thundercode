@@ -5,7 +5,7 @@
   Almost nothing in this file states a colour: the popup borrows the
   platform's, which is why the textarea, the dropdown and the button look
   native rather than approximately native. What that borrowing needs is
-  permission — a document that says nothing about `color-scheme` is a
+  permission - a document that says nothing about `color-scheme` is a
   light-only document, and Gecko keeps handing it the light `Canvas`,
   `CanvasText` and widget colours however dark the window around it is. Saying
   both are acceptable is what makes the same rules resolve to the dark set,
@@ -57,7 +57,7 @@ select {
 
 /*
   Styles the container and nothing inside it. Everything the eye reads as the
-  block — font, size, line height, border, padding, background, wrapping — is
+  block - font, size, line height, border, padding, background, wrapping - is
   already on the `<pre>` as inline style, put there by the seam, and any rule
   here that reached it would be a difference between what is previewed and
   what is inserted. That is also why there is no font size in this file: the
@@ -67,7 +67,7 @@ select {
   `overflow: auto` is the one honest divergence. A five-hundred-line paste
   would otherwise make the popup as tall as the screen and push the Insert
   button off it, so the preview is given a window onto the block rather than
-  the whole of it. It changes how much is visible, never how it renders — and
+  the whole of it. It changes how much is visible, never how it renders - and
   it makes the container a block formatting context, so the `<pre>`'s own
   12px margins stay inside the box where they can be seen, as they will be in
   the message.
@@ -85,7 +85,7 @@ select {
     The one surface here that does not follow Thunderbird's appearance, and
     the reason is that the block does not either. It carries its own light
     fill and its own text colour inline, because it is going into a message
-    and a message body is white — a dark preview would be showing the user
+    and a message body is white - a dark preview would be showing the user
     something no recipient will ever see. So the preview supplies the paper
     the block will land on, and declares itself a light-scheme surface so that
     its scrollbar belongs to the paper rather than to the popup.

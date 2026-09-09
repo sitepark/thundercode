@@ -11,7 +11,7 @@
  * 1. This file's scope is re-executed every time an event wakes the page, so
  *    top-level work must be safe to repeat.
  * 2. Anything held in module scope is lost when the page is suspended. The one
- *    piece of state here — the parked selection — is written and read within a
+ *    piece of state here - the parked selection - is written and read within a
  *    single user gesture, which is the only lifetime it can rely on.
  */
 
@@ -30,8 +30,8 @@ const TAKE_PENDING_SELECTION = "thundercode:take-pending-selection";
  *
  * Keyed rather than a single slot so that a snippet cannot cross windows: with
  * two composers open, the popup only ever claims the selection from its own
- * tab. Entries are removed as they are handed over, so a later toolbar click —
- * which parks nothing — opens an empty popup instead of replaying an old
+ * tab. Entries are removed as they are handed over, so a later toolbar click -
+ * which parks nothing - opens an empty popup instead of replaying an old
  * selection.
  */
 const pendingSelections = new Map();
@@ -48,7 +48,7 @@ function createMenu() {
       id: MENU_ID,
       title: "Insert as code block",
       // `compose_body` matches a right-click anywhere in the message body,
-      // with or without a selection — the empty-popup case is the same code
+      // with or without a selection - the empty-popup case is the same code
       // path as the prefilled one. `selection` is deliberately not listed: it
       // would also match selections in the message reader and put the item in
       // menus that have no composer to insert into.
@@ -71,7 +71,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
   }
 
   // Plain text extracted from HTML by Thunderbird, so its indentation may
-  // already be damaged before this extension sees it — the popup treats it as
+  // already be damaged before this extension sees it - the popup treats it as
   // a convenience, not as the source of truth. It is present only because the
   // extension holds the `compose` permission; context properties for compose
   // tabs are gated on it. Undefined when nothing was selected, which parks

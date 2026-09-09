@@ -4,7 +4,7 @@
 #
 # There is no build step. Thunderbird does not sign add-ons and the project has
 # no bundler, so "packaging" is literally the repo directory zipped under an
-# .xpi name — the files that ship are the files you edit.
+# .xpi name - the files that ship are the files you edit.
 #
 # This is a script rather than a one-liner in package.json only because the
 # exclusion list below needs its reasons written next to it, and JSON has
@@ -71,7 +71,7 @@ exclusions=(
 )
 
 # --recurse-paths over `.` puts manifest.json at the archive root, which is what
-# Thunderbird requires — an archive containing a single top-level folder is not
+# Thunderbird requires - an archive containing a single top-level folder is not
 # an add-on, it is a zip of one. --no-dir-entries keeps directory records out;
 # they carry local permissions and nothing needs them.
 zip --recurse-paths --no-dir-entries --quiet "$out" . --exclude "${exclusions[@]}"

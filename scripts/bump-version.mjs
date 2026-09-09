@@ -19,7 +19,7 @@ const PARTS = ["major", "minor", "patch"];
  * Thunderbird compares versions with `Services.vc`, which is nsIVersionComparator
  * and understands far more than three integers. The add-on has only ever used
  * plain `major.minor.patch`, so this refuses anything else rather than trying
- * to be clever about a shape the project does not use — a suffix that survived
+ * to be clever about a shape the project does not use - a suffix that survived
  * a bump would be an odd thing to discover in a release.
  */
 export function nextVersion(version, part) {

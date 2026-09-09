@@ -1,7 +1,7 @@
 # Publishes a release and opens the next version. Run it by hand from the
 # Actions tab; there is no automatic trigger.
 #
-# The version in manifest.json is what gets released — this workflow never
+# The version in manifest.json is what gets released - this workflow never
 # chooses it. It tags that version, publishes it, and only then raises the
 # manifest to the next one, so `main` always sits on an unreleased version and
 # the tag always names a commit where the manifest agreed with it.
@@ -12,7 +12,7 @@
 # needing a personal access token to work around that.
 #
 # The release must not be a draft or a prerelease. `update_url` resolves
-# through `releases/latest`, which skips both — either one would publish the
+# through `releases/latest`, which skips both - either one would publish the
 # archive while leaving every installed copy pointed at the previous version.
 name: Release
 
@@ -72,7 +72,7 @@ jobs:
         run: |
           version='${{ steps.version.outputs.version }}'
           if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
-            echo "Tag '$version' already exists — the manifest was not bumped after the last release" >&2
+            echo "Tag '$version' already exists - the manifest was not bumped after the last release" >&2
             exit 1
           fi
 

@@ -27,7 +27,7 @@ const entry = updates.addons[gecko.id].updates[0];
  * the Error Console says so.
  *
  * The file is generated at release time, so these assertions are on the
- * generator rather than on a committed artefact — which is the point of
+ * generator rather than on a committed artefact - which is the point of
  * generating it, but only if the generator itself is pinned.
  */
 describe("update manifest", () => {
@@ -80,7 +80,7 @@ describe("update manifest", () => {
   });
 
   it("carries a sha256 of the archive it links to", () => {
-    // Only sha256 and sha512 are accepted — the JSON parser's pattern is
+    // Only sha256 and sha512 are accepted - the JSON parser's pattern is
     // /^sha(256|512):/, and an unrecognised algorithm string fails the
     // download with ERROR_INCORRECT_HASH rather than being ignored.
     expect(entry.update_hash).toBe(`sha256:${sha256}`);
@@ -95,7 +95,7 @@ describe("update manifest", () => {
 
   /**
    * The one URL that can never change. It is baked into every installed copy,
-   * so a copy installed today polls this exact string forever — moving it
+   * so a copy installed today polls this exact string forever - moving it
    * would strand every existing install, not migrate it.
    *
    * Which is why it has to be the `latest` permalink and not a per-tag asset

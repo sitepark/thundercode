@@ -49,15 +49,15 @@ const visibleText = (html) =>
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')
-    // Last, so that an `&amp;lt;` in the output — the double-escaping this is
-    // partly here to catch — still comes back as a visible `&lt;`.
+    // Last, so that an `&amp;lt;` in the output - the double-escaping this is
+    // partly here to catch - still comes back as a visible `&lt;`.
     .replaceAll("&amp;", "&");
 
 /**
  * Deliberately not the shipped theme, and deliberately incomplete.
  *
- * Tests inject this so that swapping the theme stylesheet — which is not a
- * behaviour change — cannot fail the suite. The gaps are load-bearing too:
+ * Tests inject this so that swapping the theme stylesheet - which is not a
+ * behaviour change - cannot fail the suite. The gaps are load-bearing too:
  * `hljs-property` and `hljs-number` are absent so that the "unstyled span"
  * degradation is exercised by real highlighter output rather than by a
  * hand-made class name. Real themes have such gaps as well; the GitHub theme
@@ -67,7 +67,7 @@ const themeMap = {
   // The container rather than a token: the colour of the text no token claims,
   // keyed by the class highlight.js puts on the element that wraps the code.
   // Nothing like the shipped theme's, so a test reading it back cannot pass
-  // against a colour written into the seam by hand. Text colour only — the
+  // against a colour written into the seam by hand. Text colour only - the
   // block's fill is its own chrome, chosen with the border, and a theme's
   // `.hljs` background is the page colour it assumes rather than a fill.
   [CONTAINER_CLASS]: "color: #112233",
@@ -223,7 +223,7 @@ describe("buildCodeBlockHtml", () => {
     /**
      * An HTML parser discards a newline directly after the `<pre>` start tag,
      * which used to cost a snippet its leading blank line. Stripping leading
-     * blank lines removes the hazard rather than compensating for it — but
+     * blank lines removes the hazard rather than compensating for it - but
      * only for as long as the block's text cannot begin with a newline, which
      * is what this pins.
      */
@@ -296,7 +296,7 @@ describe("buildCodeBlockHtml", () => {
    * client drops that stylesheet the first time anyone in the thread replies.
    *
    * Every assertion here injects the fixture map above. None of them loads the
-   * shipped theme, so changing theme — which is not a behaviour change — can
+   * shipped theme, so changing theme - which is not a behaviour change - can
    * never fail the suite.
    */
   describe("syntax highlighting", () => {
@@ -316,7 +316,7 @@ describe("buildCodeBlockHtml", () => {
      * highlight.js does not emit one class per span: a tiered scope such as
      * `variable.language` arrives as `class="hljs-variable language_"`. The
      * exact list has to win, because in a real theme it is a *different*
-     * colour from the bare class — `this` and `self` are keyword-coloured
+     * colour from the bare class - `this` and `self` are keyword-coloured
      * while an ordinary variable is not. Getting this wrong is silent.
      */
     it("prefers the exact class list over the first class alone", () => {
@@ -332,7 +332,7 @@ describe("buildCodeBlockHtml", () => {
 
     /**
      * The fallback is what renders a modifier the theme has no rule for.
-     * `Foo` arrives as `hljs-title class_`, which this map does not carry —
+     * `Foo` arrives as `hljs-title class_`, which this map does not carry -
      * the bare `hljs-title` entry is what it should land on.
      */
     it("falls back to the first class when the exact list is absent", () => {
@@ -346,8 +346,8 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * The map is always incomplete — themes leave token classes unstyled on
-     * purpose — so an unknown class is a normal input, not an error.
+     * The map is always incomplete - themes leave token classes unstyled on
+     * purpose - so an unknown class is a normal input, not an error.
      */
     it("leaves a class absent from the map as an unstyled span", () => {
       const { html } = buildCodeBlockHtml({
@@ -384,8 +384,8 @@ describe("buildCodeBlockHtml", () => {
       });
 
       expect(html).toContain("<span");
-      // Read off the content, so the wrapper's marker class — the one class in
-      // the block, and not a highlighting one — is out of the question here.
+      // Read off the content, so the wrapper's marker class - the one class in
+      // the block, and not a highlighting one - is out of the question here.
       expect(preContent(html)).not.toMatch(/\bclass=/);
       expect(html).not.toMatch(/<style\b/i);
     });
@@ -407,7 +407,7 @@ describe("buildCodeBlockHtml", () => {
 
     /**
      * The highlighter escapes its own output. Escaping it a second time would
-     * put the entities themselves in the message — a recipient reading
+     * put the entities themselves in the message - a recipient reading
      * `&amp;lt;` where the code says `<`.
      */
     it("escapes the source exactly once", () => {
@@ -537,7 +537,7 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * A caller with no theme — or a popup whose stylesheet failed to load —
+     * A caller with no theme - or a popup whose stylesheet failed to load -
      * still gets a block that reads as one, in the seam's own colours. The
      * fill is stated either way, since it never came from the theme.
      */
@@ -584,7 +584,7 @@ describe("buildCodeBlockHtml", () => {
      * editor is the one reader that ignores it: Gecko's inline spell checker
      * takes a different branch for mail editors, one that consults three
      * classes of its own and never the attribute. So the block is wrapped in
-     * the only one of the three that is inert everywhere else — a signature
+     * the only one of the three that is inert everywhere else - a signature
      * would be rewritten when the identity's signature changes, and a
      * `blockquote type="cite"` would render as quoted text on the recipient's
      * screen.
@@ -599,8 +599,8 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * A marker and not a styling hook. Anything else on it — a style, a second
-     * class — would make the wrapper part of how the block looks, and the
+     * A marker and not a styling hook. Anything else on it - a style, a second
+     * class - would make the wrapper part of how the block looks, and the
      * block's appearance is the `<pre>`'s business alone.
      */
     it("puts nothing but that class on the wrapper", () => {
@@ -641,7 +641,7 @@ describe("buildCodeBlockHtml", () => {
      * stylesheet reaches the recipient. The one exception is the wrapper's
      * marker class, which asks nothing of any stylesheet: a client that keeps
      * it renders the block the same as a client that strips it. Everything
-     * inside the wrapper — the `<pre>` and every token span — stays
+     * inside the wrapper - the `<pre>` and every token span - stays
      * class-free, so what the block *looks like* survives on its own.
      */
     it("carries no class attribute inside the wrapper", () => {
@@ -666,7 +666,7 @@ describe("buildCodeBlockHtml", () => {
 
   describe("the language it used", () => {
     /**
-     * Detected as bash by a wide margin, and not remotely json — which is what
+     * Detected as bash by a wide margin, and not remotely json - which is what
      * makes it usable both as the detection fixture and as the source fed to
      * the wrong grammar on purpose.
      */
@@ -676,7 +676,7 @@ describe("buildCodeBlockHtml", () => {
      * The report is of what was applied, never of what was asked for. Ticket
      * 02 hardcoded `plaintext` here because nothing could be highlighted; the
      * rule it was protecting is the same one now, and ticket 06's preview
-     * depends on it — a claimed language the block does not carry would be
+     * depends on it - a claimed language the block does not carry would be
      * displayed as fact.
      */
     it("reports the language it actually applied", () => {
@@ -688,7 +688,7 @@ describe("buildCodeBlockHtml", () => {
 
     /**
      * Naming no language asks for detection, and the guess is applied as well
-     * as reported — the block is highlighted as the language the dropdown will
+     * as reported - the block is highlighted as the language the dropdown will
      * be showing, which is the whole of "the common case needs no input".
      *
      * A shell script is the fixture because it scores far above everything
@@ -709,7 +709,7 @@ describe("buildCodeBlockHtml", () => {
     /**
      * An override is an instruction, not a hint: the requested language is
      * used even where detection would have said something else, and the report
-     * says so. The pair matters more than either half — the same source is
+     * says so. The pair matters more than either half - the same source is
      * detected as bash one line up and rendered as json here.
      */
     it("uses the requested language instead of detecting", () => {
@@ -776,7 +776,7 @@ describe("buildCodeBlockHtml", () => {
     });
 
     /**
-     * Picking the wrong language from the dropdown is a normal thing to do —
+     * Picking the wrong language from the dropdown is a normal thing to do -
      * it is what the dropdown is for. Source that trips the chosen language's
      * `illegal` rule must still produce a block.
      */

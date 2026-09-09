@@ -1,7 +1,7 @@
 /*
  * Hand-authored. This file has no upstream counterpart that can be used
  * directly: highlight.js ships `lib/common.js`, but it is CommonJS
- * (`require`/`module.exports`) and there is no ESM build of it — `es/common.js`
+ * (`require`/`module.exports`) and there is no ESM build of it - `es/common.js`
  * is a four-line Node interop shim that re-exports the CommonJS core, which a
  * browser `<script type="module">` cannot load. See PROVENANCE.md.
  *

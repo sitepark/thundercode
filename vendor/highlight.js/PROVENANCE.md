@@ -23,7 +23,7 @@ quietly move `node_modules` a version away from what is vendored, and the
 | `LICENSE` | `LICENSE` | verbatim |
 | `core.js` | `lib/core.js` | **one line**, see below |
 | `languages/<name>.js` (36 files) | `es/languages/<name>.js` | verbatim |
-| `common.js` | — | **hand-authored**, see below |
+| `common.js` | - | **hand-authored**, see below |
 | `../highlight.js-theme-github.css` | `styles/github.css` | verbatim |
 
 ## The one-line patch to `core.js`
@@ -39,7 +39,7 @@ Nothing else changes. This is safe only because `lib/core.js` is entirely
 self-contained: it contains zero `require()` calls, so no other line needs
 rewriting to become a module. The two lines after it
 (`highlight.HighlightJS = highlight; highlight.default = highlight;`) are
-upstream's and are left alone — they assign properties to the exported object
+upstream's and are left alone - they assign properties to the exported object
 and work unchanged under ESM.
 
 Verify a version bump with:
@@ -55,18 +55,18 @@ upstream file gained internal `require()`s or a second `module.exports`, and the
 ## Why `core.js` needs patching at all
 
 The npm tarball has **no `dist/` directory and no browser bundle**. There is no
-`highlight.js/dist/highlight.min.js` in any recent release — that path 404s on
+`highlight.js/dist/highlight.min.js` in any recent release - that path 404s on
 both jsdelivr and unpkg, and Thunderbird's own "Vendoring 3rd party libraries"
 guide, which uses highlight.js as its worked example, is stale on exactly this
 point. Do not follow it literally for this package.
 
 What the tarball does ship:
 
-- `lib/*.js` — CommonJS, the real implementation.
-- `es/languages/*.js` — genuine hand-transpiled ESM, no `import` statements of
+- `lib/*.js` - CommonJS, the real implementation.
+- `es/languages/*.js` - genuine hand-transpiled ESM, no `import` statements of
   their own. Usable in a browser unmodified, which is why all 36 are copied
   verbatim.
-- `es/core.js`, `es/common.js`, `es/index.js` — **not** real ESM. Each is a
+- `es/core.js`, `es/common.js`, `es/index.js` - **not** real ESM. Each is a
   four-line shim that `import`s the CommonJS `lib/` file, relying on Node's
   CJS/ESM interop. A browser `<script type="module">` has no such interop, so
   these are useless here.
@@ -78,7 +78,7 @@ one-line patch above rather than a bundler.
 
 Upstream's `lib/common.js` is the file that defines the "common" subset, but it
 is CommonJS and its ESM counterpart is one of the useless shims. The vendored
-`common.js` is therefore written here — but it is a *transcription*, not a
+`common.js` is therefore written here - but it is a *transcription*, not a
 design decision: the 36 language names and their order are exactly upstream's
 36 `registerLanguage` calls, in upstream's order.
 
@@ -97,7 +97,7 @@ grep -oP "registerLanguage\('\K[^']+" node_modules/highlight.js/lib/common.js
 3. `cp node_modules/highlight.js/styles/github.css vendor/highlight.js-theme-github.css`
 4. Re-run the `grep` above; copy each `es/languages/<name>.js` into
    `vendor/highlight.js/languages/`, and **delete any file no longer on the
-   list** — a removed language would otherwise linger, unimported and shipped.
+   list** - a removed language would otherwise linger, unimported and shipped.
 5. `sed 's/^module\.exports = highlight;$/export default highlight;/' \
    node_modules/highlight.js/lib/core.js > vendor/highlight.js/core.js`, then
    run the `diff` above to confirm the patch is still a single line.
@@ -117,7 +117,7 @@ version bump should re-confirm them, because the theme-map lookup in
 - `hljs.highlight(code, …).value` is **already HTML-escaped**: `&`, `<`, `>` and
   `"` in the source are escaped before tokens are wrapped. The seam therefore
   does not escape the highlighted path a second time.
-- The emitted markup is a closed grammar — escaped text, `<span class="…">` and
+- The emitted markup is a closed grammar - escaped text, `<span class="…">` and
   `</span>`, nothing else (`HTMLRenderer` in `core.js` has no other output).
   Class strings are either `hljs-<scope>` with `_`-suffixed modifier classes
   appended (`hljs-title class_`, `hljs-variable language_`) or `language-<name>`

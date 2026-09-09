@@ -1,7 +1,7 @@
 /**
  * Inserts a code block into the compose editor's body at the caret.
  *
- * This function is not called here — it is handed to
+ * This function is not called here - it is handed to
  * `scripting.executeScript({ func })`, which serialises it by source and
  * re-evaluates it inside the compose editor's sandbox. It must therefore be
  * entirely self-contained: no imports, no closure variables, no reliance on
@@ -11,8 +11,8 @@
  * the styling switched off: Gecko backs it with a plaintext editor, which
  * rejects `insertHTML` and would show markup as literal angle brackets if it
  * did not. So `isPlainText` switches the editor command and what the DOM
- * fallback puts in the document. Everything around that — resolving the caret,
- * appending when there is none, and reporting which path ran — is identical in
+ * fallback puts in the document. Everything around that - resolving the caret,
+ * appending when there is none, and reporting which path ran - is identical in
  * both modes, which is why this stays one function: nothing can be shared
  * between two of them, since each crosses the sandbox boundary as its own
  * source text.
@@ -97,7 +97,7 @@ export function insertIntoBody({ content, isPlainText }) {
 
   // No caret anywhere in the body: append rather than fail, so the button
   // never appears to do nothing. Nothing is added to separate the block from
-  // what precedes it — in HTML the block separates itself, and in plain text a
+  // what precedes it - in HTML the block separates itself, and in plain text a
   // leading newline would put dead space at the top of the commonest case
   // reaching here, a composer whose body has never been clicked into at all.
   body.appendChild(buildContent());

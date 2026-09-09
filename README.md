@@ -8,7 +8,7 @@ because there is no reason not to. It is MIT licensed and bug reports are
 welcome, but it carries no support commitment.
 
 Requires **Thunderbird 128 or newer**. Manifest V3 MailExtensions do not load on
-older versions — they cannot be installed at all, temporarily or otherwise.
+older versions - they cannot be installed at all, temporarily or otherwise.
 
 ## Installing
 
@@ -21,7 +21,7 @@ Download the latest `thundercode-<version>.xpi` from the
 
 Thunderbird does not sign add-ons, so the archive installs directly. It is not
 listed on addons.thunderbird.net, which is a deliberate choice rather than an
-oversight — staying off the site is what allows the add-on to serve its own
+oversight - staying off the site is what allows the add-on to serve its own
 updates.
 
 Once installed it updates itself. Thunderbird fetches the `updates.json`
@@ -31,7 +31,7 @@ appears in the format toolbar.
 
 ## Building the archive
 
-You do not need this to use the add-on — releases are built by CI from a tag.
+You do not need this to use the add-on - releases are built by CI from a tag.
 It is here so that anyone can check the published `.xpi` against the source it
 claims to come from.
 
@@ -41,7 +41,7 @@ pnpm run package
 ```
 
 This writes `dist/thundercode-<version>.xpi`, taking the version from
-`manifest.json`. There is no build step — the archive is the repo directory
+`manifest.json`. There is no build step - the archive is the repo directory
 zipped, minus tests, docs and tooling.
 
 ## Linting the archive
@@ -51,13 +51,13 @@ pnpm run lint
 ```
 
 Builds the archive and runs [addons-linter](https://github.com/mozilla/addons-linter)
-over it — the engine behind `web-ext lint`, and the nearest thing to a review
+over it - the engine behind `web-ext lint`, and the nearest thing to a review
 Thunderbird add-ons have. It lints the built `.xpi` rather than the checkout, so
 what it reads is what ships.
 
 Zero errors is the bar. Warnings are not, and cannot be: the linter knows
-Firefox, so the MailExtension APIs this add-on exists to call — the `compose`
-permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` — all
+Firefox, so the MailExtension APIs this add-on exists to call - the `compose`
+permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` - all
 read to it as unsupported. Skim the list rather than trusting the exit code; it
 is short enough to know by heart, and a new entry is worth a look.
 
@@ -74,7 +74,7 @@ over from any permanently installed copy with the same id.
 
 The loop is then: edit a file, press **Reload** on the debugging page, reopen the
 popup. Compose scripts are injected per compose window, so changes under
-`src/compose/` need the compose window reopened as well — reloading the add-on
+`src/compose/` need the compose window reopened as well - reloading the add-on
 does not reach one that is already open.
 
 Run the tests with `pnpm test`. They cover the manifest, the update manifest,
@@ -87,13 +87,13 @@ compose window is checked by hand against `docs/release-checklist.md`.
 `type(scope): subject`. There is no `CHANGELOG.md`; the changelog is the body
 of the GitHub release, generated from these subjects by git-cliff
 (`cliff.toml`) when the release is published. So a subject is not a note to
-the next reader of `git log` — it is the sentence a user reads about the
+the next reader of `git log` - it is the sentence a user reads about the
 release, and the only one there is.
 
 Two types reach the notes:
 
-- `feat` — an **Added** entry.
-- `fix` — a **Fixed** entry.
+- `feat` - an **Added** entry.
+- `fix` - a **Fixed** entry.
 
 `refactor` and `perf` become **Changed**, `revert` becomes **Removed**, and
 `docs`, `test`, `chore`, `ci`, `build` and `style` are required on the commit
@@ -103,7 +103,7 @@ what the add-on now does, not how the repo is maintained.
 Scopes in use: `compose`, `code-block`, `popup`, `options`, `ui`, `release`.
 
 A commit with no type is dropped entirely rather than guessed at. That is
-meant to be caught in review — silently listing it under the wrong heading
+meant to be caught in review - silently listing it under the wrong heading
 would be worse. Merge commits are skipped for the same reason and keep their
 default subjects.
 
@@ -122,7 +122,7 @@ chooses it. Releasing is running an action, not pushing a tag.
 
 1. `pnpm changelog` and read it. This is the release body, and the last
    chance to fix a vague line by amending the commit it came from.
-2. Run `docs/release-checklist.md` — the action publishes immediately, so this
+2. Run `docs/release-checklist.md` - the action publishes immediately, so this
    is the last point at which nothing has shipped.
 3. **Actions ▸ Release ▸ Run workflow**, on `main`. Leave the bump at `minor`
    unless the next cycle is a patch or a major.
@@ -148,7 +148,7 @@ Two things the workflow depends on and cannot recover from:
 
 - **The release must not be a draft or a prerelease.** The workflow sets both
   to false; do not edit a published release to change that. Thunderbird polls
-  `releases/latest/download/updates.json`, and that permalink skips both — a
+  `releases/latest/download/updates.json`, and that permalink skips both - a
   prerelease would publish the archive while leaving every installed copy
   pointed at the version before it.
 - **`update_url` is baked into every installed copy.** A copy installed today
@@ -158,7 +158,7 @@ Two things the workflow depends on and cannot recover from:
 ## Where the console output goes
 
 **Tools ▸ Developer Tools ▸ Error Console** (`Ctrl+Shift+J`) collects logging
-from the background and from compose scripts — this is where `ThunderCode:`
+from the background and from compose scripts - this is where `ThunderCode:`
 lines show up. Compose-script entries are printed twice; that is a known
 Thunderbird logging quirk, not a duplicated action.
 
@@ -172,6 +172,6 @@ force a check from the Add-ons Manager gear menu.
 
 ## License
 
-MIT — see [License.md](License.md). The vendored copy of highlight.js keeps its
+MIT - see [License.md](License.md). The vendored copy of highlight.js keeps its
 own BSD-3-Clause licence and its provenance is recorded in
 `vendor/highlight.js/PROVENANCE.md`.

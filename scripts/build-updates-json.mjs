@@ -3,7 +3,7 @@
 // Builds the update manifest Thunderbird polls: dist/updates.json
 //
 // This file is generated at release time rather than committed, because every
-// field in it is already known from `manifest.json` and the built archive —
+// field in it is already known from `manifest.json` and the built archive -
 // keeping a second copy in the repo would only create something to forget.
 // It is published as a release asset and served from the `releases/latest`
 // permalink, which is why `update_url` never has to change.
@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
  *   skipped silently.
  * - There is no `strict_max_version`. Thunderbird sets
  *   `extensions.strictCompatibility = true` on release builds, so unlike
- *   Firefox it enforces the maximum — naming one would stop the update
+ *   Firefox it enforces the maximum - naming one would stop the update
  *   reaching every Thunderbird newer than it.
  *
  * `update_link` is pinned to the exact version's asset rather than a `latest`
@@ -46,7 +46,7 @@ export function buildUpdatesManifest({ manifest, xpiFileName, sha256 }) {
           {
             version: manifest.version,
             update_link: `${home}/releases/download/${manifest.version}/${xpiFileName}`,
-            // Optional — Gecko only demands a hash for a non-HTTPS link. It is
+            // Optional - Gecko only demands a hash for a non-HTTPS link. It is
             // here because generating this file means the digest is free, and
             // it turns a truncated or corrupted download into a named error
             // rather than a broken install.

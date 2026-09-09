@@ -8,7 +8,7 @@ import hljs from "../../vendor/highlight.js/common.js";
  * properties of the block, not of the settings UI: `buildCodeBlockHtml` has to
  * produce a sane block for any caller, including one that never reads storage.
  * Exporting them lets the settings module fill an empty field from the same
- * constant instead of restating it — the same number written twice is the
+ * constant instead of restating it - the same number written twice is the
  * failure this avoids, and an options page that displays a different default
  * from the one the block uses would be a lie that nothing catches.
  *
@@ -24,7 +24,7 @@ export const CODE_BLOCK_DEFAULTS = Object.freeze({
  * The key the block's own text colour is looked up under in the `themeMap`.
  *
  * `hljs` is the class highlight.js puts on the element *containing* the code,
- * and it is where a theme states the colour of the text that no token claims —
+ * and it is where a theme states the colour of the text that no token claims -
  * everything between the highlighted spans. Nothing emitted here carries the
  * class: the only class in the block is `SPELLCHECK_OPT_OUT_CLASS`, which is a
  * marker for one editor and never a hook for styling. This one is only the key
@@ -47,7 +47,7 @@ export const CONTAINER_CLASS = "hljs";
  * but Gecko's inline spell checker never reads it in a mail editor. Its
  * `ShouldSpellCheckNode` splits on the mail flag: outside a mail editor it
  * finds the nearest HTML element ancestor and honours its `Spellcheck()`, and
- * inside one it does none of that — it walks the ancestors for three markers
+ * inside one it does none of that - it walks the ancestors for three markers
  * of its own and checks every word not sitting under one. Thunderbird composes
  * with the `htmlmail` editor type, which sets that flag, so the attribute is
  * dead markup in the one place the block is going. The same branch is why a
@@ -59,7 +59,7 @@ export const CONTAINER_CLASS = "hljs";
  * bar, and a signature is not cosmetic at all: Thunderbird rewrites and
  * deletes `.moz-signature` nodes when the identity's signature changes, so the
  * block would disappear on an identity switch. The forward container is inert
- * everywhere but this check — no client styles it, and the only other code
+ * everywhere but this check - no client styles it, and the only other code
  * that reads it is Thunderbird's Filelink manager, which inserts cloud
  * attachment links before the first one in the body. Inserting a block above a
  * forwarded message therefore moves those links above the block. That is the
@@ -68,7 +68,7 @@ export const CONTAINER_CLASS = "hljs";
 const SPELLCHECK_OPT_OUT_CLASS = "moz-forward-container";
 
 /**
- * The block's colours when no theme data reaches the seam at all — a caller
+ * The block's colours when no theme data reaches the seam at all - a caller
  * that passes no `themeMap`, or a popup whose stylesheet failed to load.
  *
  * These are the seam's own unthemed rendering and not a transcription of the
@@ -82,7 +82,7 @@ const UNTHEMED_CONTAINER = "color: #24292e";
 
 /**
  * The absence of highlighting rather than a way of highlighting. It is a real
- * registered language — running it produces escaped text and not one span — so
+ * registered language - running it produces escaped text and not one span - so
  * the seam short-circuits it instead, which keeps the escaping of a block with
  * no language identical to what it was before there was a highlighter.
  */
@@ -93,11 +93,11 @@ const PLAINTEXT = "plaintext";
  * message, in both the renderings a compose window can take.
  *
  * This is the seam the whole feature is tested through. Everything behind it
- * is an internal: no step of the pipeline is exported — the only other export
- * is the defaults it falls back to, which is data rather than a step — and
+ * is an internal: no step of the pipeline is exported - the only other export
+ * is the defaults it falls back to, which is data rather than a step - and
  * tests drive only this function.
  *
- * It is pure by construction — no DOM, no `browser.*`, no I/O — which is why
+ * It is pure by construction - no DOM, no `browser.*`, no I/O - which is why
  * the test runner needs no DOM environment. The highlighter is a plain
  * function dependency and stays inside that rule: it is arithmetic over a
  * string, and the vendored bundle imports as ordinary ESM under both the popup
@@ -129,8 +129,8 @@ const PLAINTEXT = "plaintext";
  *   drops, not an exception, and the settings module resolves it before the
  *   popup ever gets this far.
  * @returns {{ html: string, text: string, detectedLanguage: string }} The same
- *   block in the two renderings a composer can take — `html` for an HTML
- *   compose window, `text` for a plain-text one (ticket 09) — plus
+ *   block in the two renderings a composer can take - `html` for an HTML
+ *   compose window, `text` for a plain-text one (ticket 09) - plus
  *   `detectedLanguage`, the language the block was actually rendered with,
  *   which the popup shows back to the user.
  */
@@ -170,7 +170,7 @@ export function buildCodeBlockHtml({
       //
       // `spellcheck="false"` stays on the `<pre>` because it is the answer the
       // standard gives and every editor that is not a Gecko mail editor
-      // honours it — a recipient quoting the block into a webmail reply is
+      // honours it - a recipient quoting the block into a webmail reply is
       // exactly who else wants it, and it is inert anywhere else.
       `<div class="${SPELLCHECK_OPT_OUT_CLASS}">` +
       `<pre spellcheck="false" style="${preStyle(fontSize, themeMap)}">` +
@@ -198,15 +198,15 @@ export function buildCodeBlockHtml({
  * asked for.
  *
  * `hljs.highlight` throws on a language it has never been given, so an
- * unregistered name — a stale setting, or a caller guessing at an alias the
- * bundle does not carry — must be caught here. It degrades to no
+ * unregistered name - a stale setting, or a caller guessing at an alias the
+ * bundle does not carry - must be caught here. It degrades to no
  * highlighting, because a monochrome block is a far better outcome than an
  * exception where a code block should be.
  *
  * `undefined` is the auto-detection request the signature has always
  * described, and this is where it stops meaning "no highlighting". It is the
  * one branch ticket 03 said it would be, and detection lands in the same guard
- * as an explicitly named language rather than beside it — one gate, so a
+ * as an explicitly named language rather than beside it - one gate, so a
  * detected name and a chosen name cannot be treated differently by accident.
  */
 function resolveLanguage(language, text) {
@@ -222,7 +222,7 @@ function resolveLanguage(language, text) {
  * guaranteed by construction rather than by a check here: `highlightAuto`
  * scores the source against the languages `registerLanguage` was called with
  * and reports the winner's registered name, so the result is by definition an
- * entry of `listLanguages()` — which is the same list the popup builds its
+ * entry of `listLanguages()` - which is the same list the popup builds its
  * dropdown from, off the same module instance. There is no third list to keep
  * in step with the other two.
  *
@@ -262,7 +262,7 @@ function renderContent(text, language, themeMap) {
   // `ignoreIllegals` so a wrong pick from the dropdown degrades to imperfect
   // colour rather than to none. Without it, source that trips the language's
   // `illegal` rule comes back as plain escaped text while the result still
-  // names the language — the block would then silently claim a highlighting it
+  // names the language - the block would then silently claim a highlighting it
   // does not have, which is the one thing `detectedLanguage` exists to prevent.
   const highlighted = hljs.highlight(text, { language, ignoreIllegals: true });
 
@@ -279,7 +279,7 @@ function renderContent(text, language, themeMap) {
  * arbitrary HTML: highlight.js's `HTMLRenderer` emits a closed grammar of
  * escaped text, `<span class="…">` and `</span>` and nothing else, with no
  * attribute able to contain a `"`. It also could not be done with a parser
- * here even if that were preferable — the seam is pure and the test runner has
+ * here even if that were preferable - the seam is pure and the test runner has
  * no DOM, which is exactly the constraint that keeps this module testable.
  */
 function inlineTokenStyles(highlighted, themeMap) {
@@ -289,7 +289,7 @@ function inlineTokenStyles(highlighted, themeMap) {
     // A class the theme says nothing about leaves a bare `<span>` rather than
     // no span at all. Dropping it would mean tracking which `</span>` to drop
     // with it, and the theme's own author leaves several token classes
-    // (`hljs-tag`, `hljs-params`, `hljs-punctuation`) deliberately unstyled —
+    // (`hljs-tag`, `hljs-params`, `hljs-punctuation`) deliberately unstyled -
     // an unstyled span is the intended rendering there, not a gap.
     return declarations ? `<span style="${declarations}">` : "<span>";
   });
@@ -304,7 +304,7 @@ function inlineTokenStyles(highlighted, themeMap) {
  * fallback. The order is not cosmetic. In the GitHub theme
  * `.hljs-variable.language_` is grouped with the keyword colour while bare
  * `.hljs-variable` is grouped with the constant colour, so looking up only the
- * first class would paint every `this` and `self` the wrong colour — silently,
+ * first class would paint every `this` and `self` the wrong colour - silently,
  * and only in the languages that have them.
  *
  * The fallback still earns its place: it is what renders `hljs-title class_
@@ -319,7 +319,7 @@ function lookUpDeclarations(classList, themeMap = {}) {
  * The seam is handed whatever the caller has: from ticket 10 that is a number
  * out of a settings field, which is `NaN` while the field is empty and could
  * be `0`. Either would make tab expansion throw, so anything that is not a
- * positive whole number becomes the default — a block indented at four is a
+ * positive whole number becomes the default - a block indented at four is a
  * far better failure than no block at all.
  *
  * Ticket 10's settings module coerces the same value before it arrives, so in
@@ -353,8 +353,8 @@ function resolveTabWidth(tabWidth) {
  * Nothing here can lose information: the removed prefix is by definition
  * present on every line, and the removed whitespace is invisible.
  *
- * The result is a fixed point — no tabs, no trailing whitespace, no blank
- * edges, at least one line flush left — so running it again changes nothing.
+ * The result is a fixed point - no tabs, no trailing whitespace, no blank
+ * edges, at least one line flush left - so running it again changes nothing.
  */
 function normaliseSource(source, tabWidth) {
   // Splitting on \n leaves the \r of a CRLF paste at the end of each line,
@@ -376,7 +376,7 @@ function normaliseSource(source, tabWidth) {
  *
  * The column is counted in code points, so a line with double-width or
  * combining characters ahead of a tab can still drift. Editors disagree about
- * that case too, and indentation — which is what this is for — is unaffected.
+ * that case too, and indentation - which is what this is for - is unaffected.
  */
 function expandTabs(line, tabWidth) {
   if (!line.includes("\t")) return line;
@@ -439,7 +439,7 @@ function stripBlankEdgeLines(lines) {
  * Removes the indentation shared by every non-blank line.
  *
  * Blank lines are skipped in the calculation rather than counted as zero
- * indent — an empty line between two indented ones is no evidence that the
+ * indent - an empty line between two indented ones is no evidence that the
  * block starts at the left margin, and counting it would silently disable the
  * whole transform. They are still sliced, which is a no-op on the empty
  * string, so the way out needs no branch.
@@ -461,7 +461,7 @@ function stripCommonIndent(lines) {
  * contract: every recipient who sees no colour at all still sees this.
  *
  * All of it is inline, because a recipient's client copies the message *body*
- * into a reply quote and discards the `<head>` — a stylesheet would lose the
+ * into a reply quote and discards the `<head>` - a stylesheet would lose the
  * block the first time anyone replies. The font size is set here and
  * inherited, never repeated per token.
  *
@@ -469,7 +469,7 @@ function stripCommonIndent(lines) {
  * same reason every token colour does: hardcoding it is what makes a theme
  * swap stop being a one-file change, and it is the colour that shows up as
  * unreadable text the day someone swaps in a theme with a different container
- * colour. The border and the background are not among them — no hljs theme
+ * colour. The border and the background are not among them - no hljs theme
  * states a code-block fill, so both are this block's own decision rather than
  * colours transcribed from anywhere.
  */

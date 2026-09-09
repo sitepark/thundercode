@@ -9,7 +9,7 @@ import {
 } from "../src/settings/settings.js";
 
 /**
- * The options page is verified by hand, like the popup — the runner has no DOM
+ * The options page is verified by hand, like the popup - the runner has no DOM
  * and is meant not to. What is testable, and is the whole of the ticket's
  * "invalid or empty values fall back to the defaults rather than producing a
  * broken block", is the coercion between storage and the seam. It is a pure
@@ -56,8 +56,8 @@ describe("coerceSettings", () => {
   });
 
   /**
-   * The ticket's own wording. An empty field is the common case — it is what
-   * clearing a value to retype it looks like at every keystroke in between —
+   * The ticket's own wording. An empty field is the common case - it is what
+   * clearing a value to retype it looks like at every keystroke in between -
    * and it must mean "the default", never "zero".
    */
   it("treats an empty or blank field as unset", () => {
@@ -79,7 +79,7 @@ describe("coerceSettings", () => {
    * Zero and negatives are the two that would actually break the block rather
    * than merely look odd: the seam expands a tab by repeating a space that many
    * times, and a negative count throws. They are still numbers, so they clamp
-   * to the minimum like anything else below the range — what matters is that
+   * to the minimum like anything else below the range - what matters is that
    * neither reaches the seam.
    */
   it("clamps zero and negative values up to the minimum", () => {
@@ -164,13 +164,13 @@ describe("coerceSettings", () => {
 
 /**
  * `browser` is a global, not a DOM, so the read and the write are reachable
- * from here after all — which is what makes these assertions about behaviour
+ * from here after all - which is what makes these assertions about behaviour
  * rather than about the text of the module. An earlier version of this file
  * read its own source and asserted that the string `browser.storage.local`
  * appeared in it; that passes for a mention in a comment and for a call in
  * code nothing reaches, and it pinned nothing.
  *
- * The stub is deliberately thin. It is not a model of `storage.local` — there
+ * The stub is deliberately thin. It is not a model of `storage.local` - there
  * is no store behind it, and asserting on a store would only be asserting that
  * this file's stub works. What it records is which area was called, with what,
  * and what the caller did with the answer, and each of those is a decision the
@@ -248,7 +248,7 @@ describe("the settings store", () => {
 
   /**
    * Coerced on the way in as well as on the way out, so the store never holds
-   * a value the block would not use — and the caller is told what was stored,
+   * a value the block would not use - and the caller is told what was stored,
    * which is what lets the options page show the correction.
    */
   it("writes coerced values and reports back what was stored", async () => {

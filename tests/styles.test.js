@@ -28,7 +28,7 @@ describe.each(themedStylesheets)("%s", (path) => {
   });
 
   /**
-   * `color-scheme` alone only rescues what the platform paints — the canvas,
+   * `color-scheme` alone only rescues what the platform paints - the canvas,
    * the form controls, the scrollbars. A colour stated in the file is stated
    * against one background, so it has to be stated against both.
    *

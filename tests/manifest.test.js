@@ -66,7 +66,7 @@ describe("manifest", () => {
    * keyset is appended to *every* window the WebExtension APIs support, not
    * only to the one the command can act on.
    *
-   * This list is a snapshot, so it cannot prove the chosen shortcut is free —
+   * This list is a snapshot, so it cannot prove the chosen shortcut is free -
    * it pins the collisions that were actually checked, so that changing the
    * binding to one of them fails here instead of in someone's compose window.
    */
@@ -147,8 +147,8 @@ describe("manifest", () => {
    * colour it.
    *
    * Nothing will. Thunderbird applies an action icon as a `list-style-image`
-   * — `chrome://messenger/content/messenger/webextensions.css` is the whole of
-   * the integration — and nothing on that path sets
+   * - `chrome://messenger/content/messenger/webextensions.css` is the whole of
+   * the integration - and nothing on that path sets
    * `-moz-context-properties`, so `context-fill`, the idiom Thunderbird's own
    * chrome icons are drawn with, paints nothing at all in an add-on's. The
    * `theme_icons` manifest key does work, but it is resolved once into the
@@ -187,7 +187,7 @@ describe("manifest", () => {
   /**
    * `compose_action.default_icon` dresses the toolbar button and nothing else.
    * Without a top-level `icons` key the add-on itself has no icon, so the
-   * Add-ons Manager falls back to the generic puzzle piece — the state
+   * Add-ons Manager falls back to the generic puzzle piece - the state
    * Thunderbird's review tooling calls `addon-icon-missing`. The same SVG
    * serves both: it is already scheme-aware, which sized PNGs would not be.
    */

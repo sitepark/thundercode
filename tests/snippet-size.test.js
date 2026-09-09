@@ -8,7 +8,7 @@ import {
 const lines = (count) => Array.from({ length: count }, (_, i) => `${i}`);
 
 /**
- * The popup itself is verified by hand — the runner has no DOM, deliberately.
+ * The popup itself is verified by hand - the runner has no DOM, deliberately.
  * What is worth pinning is the one decision inside it that is arithmetic rather
  * than presentation: how many lines were pasted, and whether that is over the
  * line. The off-by-one around a trailing newline is the reason this is a

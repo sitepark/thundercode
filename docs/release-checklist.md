@@ -6,10 +6,10 @@ settings. It cannot open a compose window, so everything the add-on actually
 
 Run it before every tag, on **both** supported Thunderbird versions:
 
-- **128 ESR** — the floor `strict_min_version` promises. Untested claims here
+- **128 ESR** - the floor `strict_min_version` promises. Untested claims here
   are worse than an honest higher floor; if something fails, either fix it or
   raise the floor.
-- **The current release** — what most people are actually on.
+- **The current release** - what most people are actually on.
 
 Record the result in the GitHub release description, or in the pull request if
 the release is being prepared on a branch.
@@ -25,7 +25,7 @@ the release is being prepared on a branch.
 - [ ] No red spell-check underlines anywhere in an inserted block, and prose
       typed above and below it is still checked. The block relies on the
       `moz-forward-container` wrapper for this, which is Thunderbird's own
-      marker and not a promise it makes to add-ons — a Thunderbird upgrade
+      marker and not a promise it makes to add-ons - a Thunderbird upgrade
       could drop it, and only this check would notice.
 - [ ] Attaching a file with Filelink while a block sits above a forwarded
       message still puts the cloud links in a sensible place. This is the known
@@ -69,13 +69,13 @@ the release is being prepared on a branch.
 - [ ] `pnpm run package` succeeds and `dist/thundercode-<version>.xpi` has the
       version from `manifest.json` in its name.
 - [ ] Install that archive from file into a clean profile and repeat one
-      insertion — this is the path users take, and it is not the path
+      insertion - this is the path users take, and it is not the path
       `about:debugging` exercises.
 - [ ] The Add-ons Manager shows the ThunderCode icon, not a puzzle piece.
 - [ ] Run Thunderbird's reviewer linter once against the archive:
       clone <https://github.com/thunderbird/webext-linter> and
       `node verify.js dist/thundercode-<version>.xpi`. Warnings about unknown
-      `messenger.*` APIs and mail permissions are expected noise — the linter
+      `messenger.*` APIs and mail permissions are expected noise - the linter
       does not know Thunderbird's own surface. Anything else is worth reading.
 
 ## Updates

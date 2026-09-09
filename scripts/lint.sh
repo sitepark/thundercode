@@ -20,12 +20,12 @@ echo "Linting $xpi" >&2
 
 # --self-hosted turns off the checks that only apply to add-ons distributed
 # through addons.mozilla.org. Without it the manifest's `update_url` is a hard
-# error ("not allowed for Mozilla-hosted add-ons") — but self-serving updates
+# error ("not allowed for Mozilla-hosted add-ons") - but self-serving updates
 # is precisely why this add-on is not listed. See "Installing" in README.md.
 #
 # Warnings are not failures, and cannot be: addons-linter knows Firefox, so
-# every MailExtension point this add-on exists to use — the `compose`
-# permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` —
+# every MailExtension point this add-on exists to use - the `compose`
+# permission, `compose.{get,set}ComposeDetails`, `composeAction.openPopup` -
 # reads to it as an unsupported API. Making warnings fatal would mean silencing
 # them one by one and losing the ones worth reading. Read the list; it should
 # stay short.
