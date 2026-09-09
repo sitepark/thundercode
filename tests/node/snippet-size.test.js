@@ -8,11 +8,12 @@ import {
 const lines = (count) => Array.from({ length: count }, (_, i) => `${i}`);
 
 /**
- * The popup itself is verified by hand - the runner has no DOM, deliberately.
- * What is worth pinning is the one decision inside it that is arithmetic rather
- * than presentation: how many lines were pasted, and whether that is over the
- * line. The off-by-one around a trailing newline is the reason this is a
- * separate function at all.
+ * The popup that shows the warning is driven in the simulated tier, where the
+ * assertion is that the line appears past the threshold and clears again below
+ * it. What is worth pinning here is the decision underneath that, which is
+ * arithmetic rather than presentation: how many lines were pasted, and whether
+ * that is over the line. The off-by-one around a trailing newline is the reason
+ * this is a separate function at all.
  *
  * These tests avoid the literal 500 wherever they can, because the threshold is
  * explicitly approximate. Moving it is a tuning decision, not a behaviour

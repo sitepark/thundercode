@@ -18,11 +18,11 @@ export const LARGE_SNIPPET_LINES = 500;
  * How many lines the pasted source has, and whether that is enough to warn
  * about.
  *
- * Pure and DOM-free so the threshold decision can be driven from a Node test -
- * the popup around it cannot be, since the runner has no DOM. The wording of
- * the warning is deliberately *not* here: pinning a sentence in a test makes
- * rephrasing it a test failure, and the sentence is the part of this most
- * likely to be reworded.
+ * Pure and DOM-free so the threshold decision can be driven without a document
+ * at all, one line count at a time, rather than through the popup that shows
+ * it. The wording of the warning is deliberately *not* here: pinning a sentence
+ * in a test makes rephrasing it a test failure, and the sentence is the part of
+ * this most likely to be reworded.
  *
  * @param {string} source
  * @returns {{ lineCount: number, isLarge: boolean }}
