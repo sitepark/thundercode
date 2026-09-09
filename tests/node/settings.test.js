@@ -10,11 +10,18 @@ import {
 import { installBrowserFake } from "../helpers/browser-fake.js";
 
 /**
- * The options page is verified by hand, like the popup - this tier has no DOM
- * and is meant not to. What is testable, and is the whole of the ticket's
- * "invalid or empty values fall back to the defaults rather than producing a
- * broken block", is the coercion between storage and the seam. It is a pure
- * function precisely so that this file can exist.
+ * The coercion between storage and the seam, which is the whole of the
+ * ticket's "invalid or empty values fall back to the defaults rather than
+ * producing a broken block". It is a pure function precisely so that this file
+ * can exist: the rules are arithmetic and need no document, so they are pinned
+ * here rather than through the page that shows them off.
+ *
+ * This file used to say that the options page was verified by hand because the
+ * runner had no DOM. The DOM was never the whole reason and it is no longer the
+ * situation: what the page does with these answers - saying out loud that a
+ * value was corrected, rather than letting a field change quietly under a
+ * "Saved." - is pinned in tests/dom/options.test.js. The division now is that
+ * the numbers are decided here and shown there.
  *
  * The expected numbers are read from `CODE_BLOCK_DEFAULTS` and `SETTING_FIELDS`
  * rather than written out, so that retuning a default stays a one-line change
