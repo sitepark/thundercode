@@ -5,6 +5,9 @@
   "description": "Thunderbird MailExtension for inserting syntax-highlighted code blocks into HTML mail",
   "type": "module",
   "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "test": "vitest run",
     "test:node": "vitest run --project node",
