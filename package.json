@@ -19,11 +19,11 @@
     "changelog": "git-cliff --unreleased --strip all"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.1",
     "git-cliff": "^2.13.1",
     "highlight.js": "11.12.0",
-    "jsdom": "^30.0.1",
-    "selenium-webdriver": "^4.48.0",
-    "vitest": "^5.0.0"
+    "jsdom": "^30.1.0",
+    "selenium-webdriver": "^4.49.0",
+    "vitest": "^5.0.1"
   }
 }
